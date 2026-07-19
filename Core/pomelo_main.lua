@@ -23,35 +23,60 @@ local function ApplyThemeStroke(parent, thickness, transparency)
     Gradient.Rotation = 45
 end
 
--- อ่านไฟล์เซฟคีย์เพื่อเช็คสถานะ เครดิต และเวลาหมดอายุ
+-- ==========================================
+-- NEW SYSTEM: เชื่อมต่อฐานข้อมูลจาก GitHub 
+-- ==========================================
 local userType = "Guest 👤"
 local userCredits = 0
 local expireTime = 0
 local isPermanent = false
+local LINK_KEY = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Core/pomelo_key.lua"
 
-local function DecodeLocalData()
+local function CheckUserStatus()
+    -- สมมติว่าระบบหลัก (Main UI) มีการเซฟ Key หรือ Code ที่ผ่านการกรอกไว้ใน _G.PomeloVerifiedCode
+    local currentCode = _G.PomeloVerifiedCode or "" 
+    
+    -- เผื่อกรณีมีการเซฟโค้ดไว้ในไฟล์เครื่องแบบเก่าด้วย
     local filePath = "Pomelo_System/SysData.cfg"
-    if isfile and isfile(filePath) then
+    if isfile and isfile(filePath) and currentCode == "" then
         local dataStr = readfile(filePath)
-        local hexData = string.match(dataStr, "POMELO_SECURE_V1\n([%a%d]+)\nEOF")
-        if not hexData then return end
-        local rawData = (hexData:gsub("%x%x", function(c) return string.char(tonumber(c, 16)) end))
-        local k, t, e, c = string.match(rawData, "K:([^|]+)|T:([^|]+)|E:(%d+)|C:(%d+)")
-        if t and e and c then
-            if t == "admin" then 
+        currentCode = string.match(dataStr, "SAVED_CODE:([^|]+)") or currentCode
+    end
+
+    if currentCode ~= "" then
+        local success, keyData = pcall(function() return game:HttpGet(LINK_KEY) end)
+        if success and keyData then
+            -- เช็คสถานะ Admin จากรูปแบบในภาพ (ADMIN KEY:...)
+            if string.match(keyData, "ADMIN KEY:%s*" .. currentCode) then
                 userType = "Admin 👑"
                 isPermanent = true
-            elseif t == "friend" then 
+                userCredits = 9999
+                expireTime = os.time() + (365 * 24 * 60 * 60)
+                
+            -- เช็คสถานะ Friend จากรูปแบบในภาพ (friend key:...)
+            elseif string.match(keyData, "friend key:%s*" .. currentCode) then
                 userType = "Friend 🤝"
-            elseif t == "normal" then 
-                userType = "Normal User 👤"
+                isPermanent = true
+                userCredits = 9999
+                expireTime = os.time() + (365 * 24 * 60 * 60)
+                
+            else
+                -- เช็คสถานะการซื้อโค้ดสคริปต์ (CODE1, CODE2, CODE3, ...)
+                for line in keyData:gmatch("[^\r\n]+") do
+                    local extCode = line:match("CODE%d+%s*=%s*(%S+)")
+                    if extCode and extCode == currentCode then
+                        userType = "Premium User 💎"
+                        isPermanent = false
+                        userCredits = 3 -- ให้เครดิตจำกัดสำหรับการรัน
+                        expireTime = os.time() + (24 * 60 * 60) -- สมมติให้เช่าได้ 24 ชั่วโมง
+                        break
+                    end
+                end
             end
-            userCredits = tonumber(c)
-            expireTime = tonumber(e) or 0
         end
     end
 end
-pcall(DecodeLocalData)
+pcall(CheckUserStatus)
 
 -- เช็คอุปกรณ์ที่เล่น
 local deviceType = "Unknown ❓"
@@ -126,7 +151,6 @@ StatLayout.SortOrder = Enum.SortOrder.LayoutOrder
 StatLayout.Padding = UDim.new(0, 4)
 StatLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
--- ปรับให้ส่งค่า TextLabel กลับมาเพื่อเอาไปทำ Loop นับเวลาถอยหลังได้
 local function CreateStatBadge(text)
     local Badge = Instance.new("Frame", StatsContainer)
     Badge.Size = UDim2.new(1, 0, 0, 24)
@@ -152,7 +176,6 @@ local function CreateStatBadge(text)
     return Lbl
 end
 
--- สร้างป้ายเก็บไว้ในตัวแปรเพื่อใช้ทำระบบ Real-time countdown
 local TimeLeftLabel = CreateStatBadge("⏳ Time Left: <b>Calculating...</b>")
 CreateStatBadge("⭐ Status: <b>" .. userType .. "</b>")
 CreateStatBadge("💎 Credits: <b>" .. (userCredits > 9000 and "Unlimited" or tostring(userCredits)) .. "</b>")
@@ -163,7 +186,7 @@ task.spawn(function()
     while task.wait(1) do
         if not TimeLeftLabel or not TimeLeftLabel.Parent then break end
         if userType == "Guest 👤" then
-            TimeLeftLabel.Text = "⏳ Time Left: <b>Expired ❌</b>"
+            TimeLeftLabel.Text = "⏳ Time Left: <b>Guest ❌</b>"
             break
         elseif isPermanent then
             TimeLeftLabel.Text = "⏳ Time Left: <b>Lifetime ♾️</b>"
@@ -217,22 +240,21 @@ BottomText.RichText = true
 BottomText.TextWrapped = true 
 BottomText.AutomaticSize = Enum.AutomaticSize.Y 
 
--- เวอร์ชันภาษาอังกฤษสุดหรูหราและพรีเมียม
+-- เนื้อหาอัปเดตใหม่ให้สอดคล้องกับระบบ REDEEM CODE จาก GitHub
 BottomText.Text = [[
 <font size='16' color='rgb(255,180,220)'><b>💎 ACCOUNT & PRIVILEGES 💎</b></font>
-<font size='11' color='rgb(200,200,200)'><i>"Essential details regarding your current key and session status"</i></font>
+<font size='11' color='rgb(200,200,200)'><i>"Live sync with Pomelo Security Protocols"</i></font>
 
-<font color='rgb(255,100,180)'><b>🔹 What are Remaining Credits?</b></font>
-• Credits represent your execution quota for the script hub.
-• <b>Normal User:</b> Deducts 1 credit per execution (3 limits per key).
-• <b>Admin / Friend:</b> Unlocks exclusive <b>Unlimited</b> bypass. Execute without limits!
+<font color='rgb(255,100,180)'><b>🔹 Script Access & Authentication</b></font>
+• <b>Premium User:</b> Verified via valid CODE (e.g., CODE1, CODE2). Grants execution access to premium mod_credit scripts.
+• <b>Admin / Friend:</b> Unlocks exclusive <b>Unlimited</b> bypass, lifetime access, and developer features!
 
-<font color='rgb(255,100,180)'><b>🔹 Time Left (Session Duration)</b></font>
-• Displays a real-time, second-by-second countdown of your active session.
-• Upon expiration, the system auto-wipes configuration files to maintain privacy.
+<font color='rgb(255,100,180)'><b>🔹 Real-time Validation System</b></font>
+• Your status is actively synchronized with the main Pomelo key database. 
+• If a code expires or is revoked remotely, the system will instantly downgrade the session to maintain strict security.
 
-<font color='rgb(255,100,180)'><b>🔹 Device Detection & Optimization</b></font>
-• Automatically identifies your platform to optimize core logic parameters, ensuring the smoothest and most stable execution tailored to your hardware.
+<font color='rgb(255,100,180)'><b>🔹 Device Optimization</b></font>
+• Core execution is automatically tailored to your current platform (PC/Mobile/Console) to guarantee maximum stability.
 
 <font color='rgb(255,150,150)'><i>💖 Secure, Reliable, and Engineered for Excellence 💖</i></font>
 ]]
