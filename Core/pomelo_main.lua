@@ -26,7 +26,7 @@ end
 -- ==========================================
 -- SYSTEM: อ่านข้อมูลคีย์ให้ตรงกับหน้า Login
 -- ==========================================
-local userType = "Unverified ❌" -- เปลี่ยนจาก Guest เป็น Unverified หากไม่พบคีย์
+local userType = "Unverified ❌" -- ลบคำว่า Guest ออกทั้งหมด
 local userCredits = 0
 local expireTime = 0
 local isPermanent = false
@@ -52,7 +52,7 @@ local function CheckUserStatus()
                 expireTime = data.expire
                 userCredits = data.credits
                 
-                -- เช็คประเภทและตั้งค่าให้ตรงกับหน้าที่บันทึกคีย์มา
+                -- เช็คประเภทและตั้งค่าให้ตรง (รองรับทั้งไฟล์เซฟเก่าและใหม่)
                 if data.type == "admin" then
                     userType = "Admin 👑"
                     isPermanent = true
@@ -60,8 +60,13 @@ local function CheckUserStatus()
                     userType = "Friend 🤝"
                     -- ถ้าเวลาเกิน 10 ปี ให้ถือว่าถาวร
                     if expireTime > os.time() + (3650 * 24 * 3600) then isPermanent = true end
-                elseif data.type == "user" then
-                    userType = "Normal User 👤" -- ผู้ใช้คีย์ธรรมดา 24 ชั่วโมง
+                elseif data.type == "user" or data.type == "normal" then 
+                    -- รองรับ data.type == "normal" จากไฟล์เก่าที่คุณเคยรันก่อนหน้านี้ด้วย
+                    userType = "Normal User 👤" 
+                    isPermanent = false
+                else
+                    -- ถ้าหลุดเคสอื่นมา แต่มี expireTime ก็ให้นับเป็น Normal User ไว้ก่อน
+                    userType = "Normal User 👤"
                     isPermanent = false
                 end
             end
@@ -182,13 +187,15 @@ task.spawn(function()
     while task.wait(1) do
         if not TimeLeftLabel or not TimeLeftLabel.Parent then break end
         
-        if userType == "Unverified ❌" then
+        -- ถ้ายอด expireTime เป็น 0 หรือไม่มีคีย์ ให้ขึ้น No Key
+        if expireTime == 0 or userType == "Unverified ❌" then
             TimeLeftLabel.Text = "⏳ Time Left: <b>No Key ❌</b>"
         elseif isPermanent then
             TimeLeftLabel.Text = "⏳ Time Left: <b>Lifetime ♾️</b>"
         else
-            -- คำนวณเวลาถอยหลัง (วินาที)
+            -- ระบบนับเวลาถอยหลังแบบเรียลไทม์
             local diff = expireTime - os.time()
+            
             if diff <= 0 then
                 TimeLeftLabel.Text = "⏳ Time Left: <b>Expired ❌</b>"
             else
@@ -197,6 +204,7 @@ task.spawn(function()
                 local minutes = math.floor((diff % 3600) / 60)
                 local seconds = diff % 60
                 
+                -- อัปเดตข้อความเรื่อยๆ ตามวินาทีที่เดิน
                 if days > 0 then
                     TimeLeftLabel.Text = string.format("⏳ Time Left: <b>%dd %02dh %02dm %02ds</b>", days, hours, minutes, seconds)
                 else
