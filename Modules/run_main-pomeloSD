@@ -1,0 +1,396 @@
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Camera = workspace.CurrentCamera
+
+local LINK_PC = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_pc.lua"  
+local LINK_PE = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_pe.lua"  
+local LINK_TABS_DATA = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Core/pomelo_main.lua"
+
+local UI_PARENT = (gethui and gethui()) or CoreGui
+if UI_PARENT:FindFirstChild("PomeloMainUI") then UI_PARENT.PomeloMainUI:Destroy() end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PomeloMainUI"
+ScreenGui.ResetOnSpawn = false
+-- [แก้บัคที่นี่]: เพิ่ม IgnoreGuiInset เพื่อให้ UI ทะลุขอบเมนู Roblox ขึ้นไปเต็มจอ 100% จริงๆ
+ScreenGui.IgnoreGuiInset = true 
+ScreenGui.Parent = UI_PARENT
+
+local ClickSound = Instance.new("Sound")
+ClickSound.SoundId = "rbxassetid://6895079853"
+ClickSound.Volume = 0.6
+ClickSound.Parent = ScreenGui
+
+local BGMusic = Instance.new("Sound")
+BGMusic.SoundId = "rbxassetid://9048375035"
+BGMusic.Volume = 0.02
+BGMusic.Looped = true
+BGMusic.Parent = ScreenGui
+BGMusic:Play()
+
+local function PlayClick() pcall(function() ClickSound:Play() end) end
+
+local function ApplyGradientGlow(parent, thickness, colorSeq)
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Parent = parent
+    Stroke.Color = Color3.fromRGB(255, 255, 255)
+    Stroke.Thickness = thickness
+    Stroke.Transparency = 0.2
+    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border 
+    local Gradient = Instance.new("UIGradient")
+    Gradient.Parent = Stroke
+    Gradient.Color = colorSeq or ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 180)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 200, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 180))
+    })
+    Gradient.Rotation = 45
+    return Stroke, Gradient
+end
+
+-- ==========================================
+-- Floating Button Setup
+-- ==========================================
+local FloatingBtn = Instance.new("ImageButton")
+FloatingBtn.Parent = ScreenGui
+FloatingBtn.Size = UDim2.new(0, 0, 0, 0)
+FloatingBtn.Position = UDim2.new(0.5, -25, 0.1, 0)
+FloatingBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+FloatingBtn.BackgroundTransparency = 0.2 
+FloatingBtn.AutoButtonColor = false
+FloatingBtn.Visible = false
+FloatingBtn.ZIndex = 50
+
+local FloatText = Instance.new("TextLabel")
+FloatText.Parent = FloatingBtn
+FloatText.Size = UDim2.new(1, 0, 1, 0)
+FloatText.BackgroundTransparency = 1
+FloatText.Text = "P"
+FloatText.Font = Enum.Font.Arcade
+FloatText.TextSize = 30
+FloatText.TextColor3 = Color3.fromRGB(255, 180, 220)
+FloatText.ZIndex = 51
+Instance.new("UICorner", FloatingBtn).CornerRadius = UDim.new(0, 12)
+ApplyGradientGlow(FloatingBtn, 2)
+
+local floatDragging, floatDragStart, floatStartPos
+local floatHasMoved = false 
+
+FloatingBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        floatDragging = true
+        floatHasMoved = false
+        floatDragStart = input.Position
+        floatStartPos = UDim2.new(0, FloatingBtn.AbsolutePosition.X, 0, FloatingBtn.AbsolutePosition.Y)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if floatDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - floatDragStart
+        if delta.Magnitude > 3 then 
+            floatHasMoved = true
+        end
+        local viewport = Camera.ViewportSize
+        local floatSize = FloatingBtn.AbsoluteSize
+        local newX = math.clamp(floatStartPos.X.Offset + delta.X, 0, viewport.X - floatSize.X)
+        local newY = math.clamp(floatStartPos.Y.Offset + delta.Y, 0, viewport.Y - floatSize.Y)
+        FloatingBtn.Position = UDim2.new(0, newX, 0, newY)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+        floatDragging = false 
+    end
+end)
+
+-- ==========================================
+-- Main Window Setup
+-- ==========================================
+local NormalSize = UDim2.new(0, 600, 0, 360)
+local MaximizeSize = UDim2.new(1, 0, 1, 0) 
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.Size = NormalSize 
+MainFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+MainFrame.BackgroundTransparency = 0.15 
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+ApplyGradientGlow(MainFrame, 2)
+
+local MainScale = Instance.new("UIScale")
+MainScale.Parent = MainFrame
+MainScale.Scale = 0 
+
+local BGImage = Instance.new("ImageLabel")
+BGImage.Parent = MainFrame
+BGImage.AnchorPoint = Vector2.new(0.5, 0.5)
+BGImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+BGImage.Size = UDim2.new(0.7, 0, 0.9, 0) 
+BGImage.BackgroundTransparency = 1
+BGImage.Image = "rbxassetid://7965269395"
+BGImage.ImageTransparency = 0.85 
+BGImage.ScaleType = Enum.ScaleType.Fit 
+BGImage.ZIndex = 0 
+
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and MainFrame.AbsoluteSize.X > 0 then
+        local mousePos = input.Position
+        local frameCenter = MainFrame.AbsolutePosition + (MainFrame.AbsoluteSize / 2)
+        local distX = (mousePos.X - frameCenter.X) / (MainFrame.AbsoluteSize.X / 2)
+        local distY = (mousePos.Y - frameCenter.Y) / (MainFrame.AbsoluteSize.Y / 2)
+        TweenService:Create(BGImage, TweenInfo.new(0.2), {Position = UDim2.new(0.5, distX * 10, 0.5, distY * 10)}):Play()
+    end
+end)
+
+local dragging, dragStart, startPos
+local DragArea = Instance.new("Frame")
+DragArea.Parent = MainFrame
+DragArea.Size = UDim2.new(1, -120, 0, 45)
+DragArea.BackgroundTransparency = 1
+DragArea.ZIndex = 10
+
+DragArea.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = UDim2.new(0, MainFrame.AbsolutePosition.X + (MainFrame.AbsoluteSize.X/2), 0, MainFrame.AbsolutePosition.Y + (MainFrame.AbsoluteSize.Y/2))
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Size = UDim2.new(0, 150, 0, 45)
+Title.Position = UDim2.new(0, 20, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "POMELO"
+Title.Font = Enum.Font.Arcade
+Title.TextSize = 32
+Title.TextColor3 = Color3.fromRGB(255, 200, 240)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local TitleStroke = Instance.new("UIStroke")
+TitleStroke.Parent = Title
+TitleStroke.Color = Color3.fromRGB(255, 100, 180)
+TitleStroke.Thickness = 1
+TitleStroke.Transparency = 0.3
+
+local function CreateActionBtn(text, posX, action)
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = MainFrame
+    Btn.Size = UDim2.new(0, 45, 0, 24)
+    Btn.Position = UDim2.new(0, posX, 0, 10)
+    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+    Btn.BackgroundTransparency = 0.2
+    Btn.Text = text
+    Btn.TextColor3 = Color3.fromRGB(255, 180, 220)
+    Btn.Font = Enum.Font.Jura
+    Btn.TextSize = 13
+    Btn.ZIndex = 11
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    ApplyGradientGlow(Btn, 1)
+    
+    Btn.MouseButton1Click:Connect(function() PlayClick(); pcall(action) end)
+    Btn.MouseEnter:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 70)}):Play() end)
+    Btn.MouseLeave:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 45, 52)}):Play() end)
+end
+
+CreateActionBtn("PC", 170, function() loadstring(game:HttpGet(LINK_PC))() end)
+CreateActionBtn("PE", 225, function() loadstring(game:HttpGet(LINK_PE))() end)
+
+local function CreateWindowBtn(text, posX, hoverColor, action)
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = MainFrame
+    Btn.Size = UDim2.new(0, 26, 0, 26)
+    Btn.AnchorPoint = Vector2.new(1, 0)
+    Btn.Position = UDim2.new(1, posX, 0, 10)
+    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+    Btn.BackgroundTransparency = 0.2
+    Btn.Text = text
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 12
+    Btn.ZIndex = 15
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(1, 0)
+    
+    Btn.MouseEnter:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play() end)
+    Btn.MouseLeave:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 45, 52)}):Play() end)
+    Btn.MouseButton1Click:Connect(function() PlayClick(); action() end)
+end
+
+CreateWindowBtn("X", -20, Color3.fromRGB(255, 60, 60), function()
+    local t = TweenService:Create(MainScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+    t:Play()
+    t.Completed:Wait()
+    ScreenGui:Destroy()
+end)
+
+local isMaximized = false
+CreateWindowBtn("□", -55, Color3.fromRGB(255, 200, 50), function()
+    isMaximized = not isMaximized
+    local targetSize = isMaximized and MaximizeSize or NormalSize
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Size = targetSize,
+        Position = UDim2.new(0.5, 0, 0.5, 0)
+    }):Play()
+end)
+
+CreateWindowBtn("-", -90, Color3.fromRGB(50, 255, 100), function()
+    local t = TweenService:Create(MainScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+    t:Play()
+    t.Completed:Wait()
+    MainFrame.Visible = false
+    FloatingBtn.Visible = true
+    FloatingBtn.Size = UDim2.new(0, 0, 0, 0)
+    TweenService:Create(FloatingBtn, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 45, 0, 45)}):Play()
+end)
+
+FloatingBtn.MouseButton1Click:Connect(function()
+    if floatHasMoved then return end 
+    PlayClick()
+    local t = TweenService:Create(FloatingBtn, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+    t:Play()
+    t.Completed:Wait()
+    FloatingBtn.Visible = false
+    MainFrame.Visible = true
+    TweenService:Create(MainScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
+
+local TabBar = Instance.new("ScrollingFrame")
+TabBar.Parent = MainFrame
+TabBar.Size = UDim2.new(1, -40, 0, 35)
+TabBar.Position = UDim2.new(0, 20, 0, 55)
+TabBar.BackgroundTransparency = 1
+TabBar.ScrollBarThickness = 0
+TabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
+TabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+
+local TabListLayout = Instance.new("UIListLayout")
+TabListLayout.Parent = TabBar
+TabListLayout.FillDirection = Enum.FillDirection.Horizontal
+TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabListLayout.Padding = UDim.new(0, 8)
+TabListLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
+
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Parent = MainFrame
+ContentContainer.Size = UDim2.new(1, -40, 1, -115)
+ContentContainer.Position = UDim2.new(0, 20, 0, 95)
+ContentContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+ContentContainer.BackgroundTransparency = 0.4
+ContentContainer.ClipsDescendants = true
+Instance.new("UICorner", ContentContainer).CornerRadius = UDim.new(0, 8)
+ApplyGradientGlow(ContentContainer, 1)
+
+local TabsData = {}
+
+local function CreateTab(tabName, scriptContent)
+    local TabBtn = Instance.new("TextButton")
+    TabBtn.Parent = TabBar
+    TabBtn.Size = UDim2.new(0, 100, 0, 24) 
+    TabBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+    TabBtn.BackgroundTransparency = 0.2
+    TabBtn.Text = tabName
+    TabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TabBtn.Font = Enum.Font.Jura
+    TabBtn.TextSize = 13
+    Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
+    
+    local Stroke, Gradient = ApplyGradientGlow(TabBtn, 1)
+    Stroke.Transparency = 1 
+    
+    local PageFrame = Instance.new("Frame")
+    PageFrame.Parent = ContentContainer
+    PageFrame.Size = UDim2.new(1, 0, 1, 0)
+    PageFrame.BackgroundTransparency = 1
+    PageFrame.Visible = false
+    
+    local tabInfo = {Btn = TabBtn, Page = PageFrame, Loaded = false, Stroke = Stroke}
+    table.insert(TabsData, tabInfo)
+    
+    TabBtn.MouseButton1Click:Connect(function()
+        PlayClick()
+        for _, t in ipairs(TabsData) do
+            t.Page.Visible = false
+            t.Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            TweenService:Create(t.Stroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
+            TweenService:Create(t.Btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 45, 52)}):Play()
+        end
+        PageFrame.Visible = true
+        TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TweenService:Create(Stroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
+        TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 70)}):Play()
+        
+        if not tabInfo.Loaded and scriptContent and scriptContent ~= "" then
+            tabInfo.Loaded = true
+            task.spawn(function()
+                _G.CurrentPomeloTab = PageFrame 
+                local func, err = loadstring(scriptContent)
+                if func then pcall(func) else warn("Error loading tab: " .. tabName .. " | Error: " .. tostring(err)) end
+            end)
+        end
+    end)
+    
+    if #TabsData == 1 then
+        TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Stroke.Transparency = 0
+        TabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        PageFrame.Visible = true
+        if not tabInfo.Loaded and scriptContent and scriptContent ~= "" then
+            tabInfo.Loaded = true
+            task.spawn(function()
+                _G.CurrentPomeloTab = PageFrame
+                local func = loadstring(scriptContent)
+                if func then pcall(func) end
+            end)
+        end
+    end
+end
+
+task.spawn(function()
+    local success, rawData = pcall(function() return game:HttpGet(LINK_TABS_DATA) end)
+    if success and rawData and rawData ~= "" then
+        local inScript = false
+        local currentName = nil
+        local currentScriptCode = {}
+        for line in rawData:gmatch("([^\r\n]+)") do
+            if not inScript then
+                local tabNameMatch = string.match(line, "TAB%d+%s*name=(.+)")
+                if tabNameMatch then
+                    currentName = string.match(tabNameMatch, "^%s*(.-)%s*$")
+                elseif currentName and string.match(line, "%[%.%.%.") then
+                    inScript = true
+                    currentScriptCode = {} 
+                end
+            else
+                if string.match(line, "%]%.%.%.") then
+                    inScript = false
+                    if currentName then
+                        CreateTab(currentName, table.concat(currentScriptCode, "\n"))
+                        currentName = nil
+                    end
+                else
+                    table.insert(currentScriptCode, line)
+                end
+            end
+        end
+    end
+end)
+
+TweenService:Create(MainScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
