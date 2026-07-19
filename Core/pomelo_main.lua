@@ -39,36 +39,36 @@ local function CheckUserStatus()
     -- เผื่อกรณีมีการเซฟโค้ดไว้ในไฟล์เครื่องแบบเก่าด้วย
     local filePath = "Pomelo_System/SysData.cfg"
     if isfile and isfile(filePath) and currentCode == "" then
-        local dataStr = readfile(filePath)
-        currentCode = string.match(dataStr, "SAVED_CODE:([^|]+)") or currentCode
+        local success, dataStr = pcall(readfile, filePath)
+        if success then
+            currentCode = string.match(dataStr, "SAVED_CODE:([^|]+)") or currentCode
+        end
     end
+
+    -- ปลอมโค้ดชั่วคราวสำหรับทดสอบเวลานับถอยหลัง (ถ้าต้องการเทสให้เอา -- ข้างหน้าบรรทัดล่างออก)
+    -- currentCode = "CODE1" 
 
     if currentCode ~= "" then
         local success, keyData = pcall(function() return game:HttpGet(LINK_KEY) end)
         if success and keyData then
-            -- เช็คสถานะ Admin จากรูปแบบในภาพ (ADMIN KEY:...)
             if string.match(keyData, "ADMIN KEY:%s*" .. currentCode) then
                 userType = "Admin 👑"
                 isPermanent = true
                 userCredits = 9999
-                expireTime = os.time() + (365 * 24 * 60 * 60)
                 
-            -- เช็คสถานะ Friend จากรูปแบบในภาพ (friend key:...)
             elseif string.match(keyData, "friend key:%s*" .. currentCode) then
                 userType = "Friend 🤝"
                 isPermanent = true
                 userCredits = 9999
-                expireTime = os.time() + (365 * 24 * 60 * 60)
                 
             else
-                -- เช็คสถานะการซื้อโค้ดสคริปต์ (CODE1, CODE2, CODE3, ...)
                 for line in keyData:gmatch("[^\r\n]+") do
                     local extCode = line:match("CODE%d+%s*=%s*(%S+)")
                     if extCode and extCode == currentCode then
                         userType = "Premium User 💎"
                         isPermanent = false
-                        userCredits = 3 -- ให้เครดิตจำกัดสำหรับการรัน
-                        expireTime = os.time() + (24 * 60 * 60) -- สมมติให้เช่าได้ 24 ชั่วโมง
+                        userCredits = 3 
+                        expireTime = os.time() + (24 * 60 * 60) -- ให้เวลา 24 ชั่วโมงจากปัจจุบัน
                         break
                     end
                 end
@@ -110,8 +110,10 @@ AvatarImage.BackgroundTransparency = 1
 Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
 
 task.spawn(function()
-    local content, isReady = Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
-    if isReady then AvatarImage.Image = content end
+    local success, content, isReady = pcall(function()
+        return Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+    end)
+    if success and isReady then AvatarImage.Image = content end
 end)
 
 local NameFrame = Instance.new("Frame", ProfileCard)
@@ -177,30 +179,39 @@ local function CreateStatBadge(text)
 end
 
 local TimeLeftLabel = CreateStatBadge("⏳ Time Left: <b>Calculating...</b>")
-CreateStatBadge("⭐ Status: <b>" .. userType .. "</b>")
-CreateStatBadge("💎 Credits: <b>" .. (userCredits > 9000 and "Unlimited" or tostring(userCredits)) .. "</b>")
+local StatusLabel = CreateStatBadge("⭐ Status: <b>" .. userType .. "</b>")
+local CreditsLabel = CreateStatBadge("💎 Credits: <b>" .. (userCredits > 9000 and "Unlimited" or tostring(userCredits)) .. "</b>")
 CreateStatBadge("🎮 Device: <b>" .. deviceType .. "</b>")
 
--- ระบบ Loop คำนวณและอัปเดตเวลานับถอยหลังวินาทิต่อวินาที
+-- ==========================================
+-- FIX: ระบบ Loop คำนวณและอัปเดตเวลานับถอยหลัง
+-- ==========================================
 task.spawn(function()
     while task.wait(1) do
+        -- ถ้า UI ถูกทำลายให้หยุดลูปทันที ป้องกัน Error
         if not TimeLeftLabel or not TimeLeftLabel.Parent then break end
+        
         if userType == "Guest 👤" then
             TimeLeftLabel.Text = "⏳ Time Left: <b>Guest ❌</b>"
-            break
         elseif isPermanent then
             TimeLeftLabel.Text = "⏳ Time Left: <b>Lifetime ♾️</b>"
-            break
         else
+            -- คำนวณเวลาถอยหลัง (วินาที)
             local diff = expireTime - os.time()
             if diff <= 0 then
                 TimeLeftLabel.Text = "⏳ Time Left: <b>Expired ❌</b>"
-                break
             else
-                local hours = math.floor(diff / 3600)
+                -- แปลงหน่วยเวลาให้สมบูรณ์ขึ้น มี "วัน" ด้วย
+                local days = math.floor(diff / 86400)
+                local hours = math.floor((diff % 86400) / 3600)
                 local minutes = math.floor((diff % 3600) / 60)
                 local seconds = diff % 60
-                TimeLeftLabel.Text = string.format("⏳ Time Left: <b>%02dh %02dm %02ds</b>", hours, minutes, seconds)
+                
+                if days > 0 then
+                    TimeLeftLabel.Text = string.format("⏳ Time Left: <b>%dd %02dh %02dm %02ds</b>", days, hours, minutes, seconds)
+                else
+                    TimeLeftLabel.Text = string.format("⏳ Time Left: <b>%02dh %02dm %02ds</b>", hours, minutes, seconds)
+                end
             end
         end
     end
@@ -240,7 +251,6 @@ BottomText.RichText = true
 BottomText.TextWrapped = true 
 BottomText.AutomaticSize = Enum.AutomaticSize.Y 
 
--- เนื้อหาอัปเดตใหม่ให้สอดคล้องกับระบบ REDEEM CODE จาก GitHub
 BottomText.Text = [[
 <font size='16' color='rgb(255,180,220)'><b>💎 ACCOUNT & PRIVILEGES 💎</b></font>
 <font size='11' color='rgb(200,200,200)'><i>"Live sync with Pomelo Security Protocols"</i></font>
