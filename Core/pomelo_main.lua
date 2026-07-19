@@ -217,16 +217,24 @@ BottomText.RichText = true
 BottomText.TextWrapped = true 
 BottomText.AutomaticSize = Enum.AutomaticSize.Y 
 
+-- เวอร์ชันภาษาอังกฤษสุดหรูหราและพรีเมียม
 BottomText.Text = [[
-<font size='16' color='rgb(255,180,220)'><b>✨ POMELO HUB ✨</b></font>
-<font size='11' color='rgb(200,200,200)'><i>"The ultimate optimized and sleek scripting experience."</i></font>
+<font size='16' color='rgb(255,180,220)'><b>💎 ACCOUNT & PRIVILEGES 💎</b></font>
+<font size='11' color='rgb(200,200,200)'><i>"Essential details regarding your current key and session status"</i></font>
 
-<b>Version:</b> Update 1  |  <b>Created on:</b> 25th
+<font color='rgb(255,100,180)'><b>🔹 What are Remaining Credits?</b></font>
+• Credits represent your execution quota for the script hub.
+• <b>Normal User:</b> Deducts 1 credit per execution (3 limits per key).
+• <b>Admin / Friend:</b> Unlocks exclusive <b>Unlimited</b> bypass. Execute without limits!
 
-<b>🛠️ Pomelo Team 🛠️</b>
-<b>Head Developer:</b> Bilibil31
-<b>UI/UX Designers:</b> Nugget HUB
-<b>Core Logic Creators:</b> PoPoPoO HUB, GGBood
+<font color='rgb(255,100,180)'><b>🔹 Time Left (Session Duration)</b></font>
+• Displays a real-time, second-by-second countdown of your active session.
+• Upon expiration, the system auto-wipes configuration files to maintain privacy.
+
+<font color='rgb(255,100,180)'><b>🔹 Device Detection & Optimization</b></font>
+• Automatically identifies your platform to optimize core logic parameters, ensuring the smoothest and most stable execution tailored to your hardware.
+
+<font color='rgb(255,150,150)'><i>💖 Secure, Reliable, and Engineered for Excellence 💖</i></font>
 ]]
 ]...
 TAB2 name=Main2
