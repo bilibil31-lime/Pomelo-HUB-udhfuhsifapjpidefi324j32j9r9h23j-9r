@@ -175,18 +175,33 @@ DivGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 42))
 })
 
--- ข้อความเครดิตจัดกลาง
+-- ข้อความเครดิตแบบจัดเต็ม (ใส่ RichText)
 local BottomText = Instance.new("TextLabel")
 BottomText.Parent = FooterContainer
-BottomText.Size = UDim2.new(1, 0, 1, -15)
-BottomText.Position = UDim2.new(0, 0, 0, 10)
+BottomText.Size = UDim2.new(1, 0, 1, -10)
+BottomText.Position = UDim2.new(0, 0, 0, 5)
 BottomText.BackgroundTransparency = 1
-BottomText.Text = "<font color='rgb(255,180,220)'><b>POMELO HUB</b></font>\n\nScript Info & Credits\nCreated by [Your Name]\nVersion 1.0.0"
-BottomText.TextColor3 = Color3.fromRGB(130, 130, 140)
+BottomText.TextColor3 = Color3.fromRGB(150, 150, 160)
 BottomText.Font = Enum.Font.Gotham
-BottomText.TextSize = 13
+BottomText.TextSize = 12
 BottomText.TextYAlignment = Enum.TextYAlignment.Center
 BottomText.RichText = true
+
+-- ใส่ข้อความบรรยายภาษาอังกฤษตรงนี้
+BottomText.Text = [[
+<font size='16' color='rgb(255,180,220)'><b>✨ POMELO HUB ✨</b></font>
+<font size='11' color='rgb(200,200,200)'><i>"The ultimate optimized and sleek scripting experience."</i></font>
+
+<b>Version:</b> Update 1  |  <b>Created on:</b> 25th
+<font color='rgb(180,180,180)'>Experience lag-free execution, highly optimized core features, and a modern, user-friendly interface designed for peak performance.</font>
+
+<b>🛠️ Pomelo Team 🛠️</b>
+<b>Head Developer:</b> Bilibil31
+<b>UI/UX Designers:</b> Nugget HUB
+<b>Core Logic Creators:</b> PoPoPoO HUB, GGBood
+
+<font color='rgb(255,150,150)'><i>💖 Thank you to all our supporters! 💖</i></font>
+]]
 ]...
 TAB2 name=Main2
 [...
