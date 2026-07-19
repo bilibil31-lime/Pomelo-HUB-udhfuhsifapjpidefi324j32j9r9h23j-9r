@@ -150,13 +150,19 @@ CreateStatBadge("⭐", "Status: <b>Unlimited (Dev)</b>")
 CreateStatBadge("💎", "Credits: <b>9,999</b>")
 
 -- ==================================================
--- 5. ส่วนแสดงเครดิตสคริปต์ (Footer & Divider)
+-- 5. ส่วนแสดงเครดิตสคริปต์ (Footer & Divider) เลื่อนได้ & แก้ข้อความล้น
 -- ==================================================
-local FooterContainer = Instance.new("Frame")
+-- เปลี่ยนจาก Frame เป็น ScrollingFrame
+local FooterContainer = Instance.new("ScrollingFrame")
 FooterContainer.Parent = TabContainer
 FooterContainer.Size = UDim2.new(1, -20, 1, -150)
 FooterContainer.Position = UDim2.new(0, 10, 0, 145)
 FooterContainer.BackgroundTransparency = 1
+FooterContainer.BorderSizePixel = 0
+FooterContainer.ScrollBarThickness = 3 -- ความหนาของแถบเลื่อน
+FooterContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 180) -- สีแถบเลื่อนให้เข้ากับธีมชมพู
+FooterContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+FooterContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y -- ยืดพื้นที่เลื่อนอัตโนมัติเมื่อข้อความยาวขึ้น
 
 -- เส้นคั่นไล่สี
 local Divider = Instance.new("Frame")
@@ -178,14 +184,18 @@ DivGradient.Color = ColorSequence.new({
 -- ข้อความเครดิตแบบจัดเต็ม (ใส่ RichText)
 local BottomText = Instance.new("TextLabel")
 BottomText.Parent = FooterContainer
-BottomText.Size = UDim2.new(1, 0, 1, -10)
-BottomText.Position = UDim2.new(0, 0, 0, 5)
+BottomText.Size = UDim2.new(1, -10, 0, 0) -- เผื่อพื้นที่ด้านขวานิดหน่อยไม่ให้ทับแถบเลื่อน
+BottomText.Position = UDim2.new(0, 0, 0, 10)
 BottomText.BackgroundTransparency = 1
 BottomText.TextColor3 = Color3.fromRGB(150, 150, 160)
 BottomText.Font = Enum.Font.Gotham
 BottomText.TextSize = 12
-BottomText.TextYAlignment = Enum.TextYAlignment.Center
+BottomText.TextYAlignment = Enum.TextYAlignment.Top -- ดันข้อความไปเริ่มที่ขอบบน จะได้เลื่อนลงมาอ่านได้
 BottomText.RichText = true
+
+-- *จุดสำคัญที่แก้บัคข้อความล้น*
+BottomText.TextWrapped = true -- ทำให้ข้อความที่ยาวเกินขอบถูกปัดขึ้นบรรทัดใหม่
+BottomText.AutomaticSize = Enum.AutomaticSize.Y -- ทำให้กล่องข้อความขยายความสูงตามข้อความจริงๆ
 
 -- ใส่ข้อความบรรยายภาษาอังกฤษตรงนี้
 BottomText.Text = [[
@@ -202,6 +212,7 @@ BottomText.Text = [[
 
 <font color='rgb(255,150,150)'><i>💖 Thank you to all our supporters! 💖</i></font>
 ]]
+
 ]...
 TAB2 name=Main2
 [...
