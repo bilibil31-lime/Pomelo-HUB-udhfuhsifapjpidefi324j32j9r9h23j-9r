@@ -1,86 +1,95 @@
 TAB1 name=Main into
 [...
--- ==================================================
--- MAIN TAB : PLAYER PROFILE UI (BEAUTIFIED VERSION)
--- ==================================================
 local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
 local Player = Players.LocalPlayer
 
 local TabContainer = _G.CurrentPomeloTab
 if not TabContainer then return end
 
--- ฟังก์ชันช่วยสร้างขอบเรืองแสงให้เข้ากับธีม Pomelo (ใช้เฉพาะในหน้านี้)
 local function ApplyThemeStroke(parent, thickness, transparency)
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Parent = parent
+    local Stroke = Instance.new("UIStroke", parent)
     Stroke.Color = Color3.fromRGB(255, 255, 255)
     Stroke.Thickness = thickness or 1
     Stroke.Transparency = transparency or 0.2
     Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border 
     
-    local Gradient = Instance.new("UIGradient")
-    Gradient.Parent = Stroke
+    local Gradient = Instance.new("UIGradient", Stroke)
     Gradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 180)),
         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 200, 255)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 180))
     })
     Gradient.Rotation = 45
-    return Stroke
 end
 
--- ==================================================
--- 1. การ์ดโปรไฟล์รวม (Profile Card)
--- ==================================================
-local ProfileCard = Instance.new("Frame")
-ProfileCard.Parent = TabContainer
-ProfileCard.Size = UDim2.new(1, -20, 0, 120)
+-- อ่านไฟล์เซฟคีย์เพื่อเช็คสถานะและเครดิต
+local userType = "Guest 👤"
+local userCredits = 0
+
+local function DecodeLocalData()
+    local filePath = "Pomelo_System/SysData.cfg"
+    if isfile and isfile(filePath) then
+        local dataStr = readfile(filePath)
+        local hexData = string.match(dataStr, "POMELO_SECURE_V1\n([%a%d]+)\nEOF")
+        if not hexData then return end
+        local rawData = (hexData:gsub("%x%x", function(c) return string.char(tonumber(c, 16)) end))
+        local _, t, _, c = string.match(rawData, "K:([^|]+)|T:([^|]+)|E:(%d+)|C:(%d+)")
+        if t and c then
+            if t == "admin" then userType = "Admin 👑"
+            elseif t == "friend" then userType = "Friend 🤝"
+            elseif t == "normal" then userType = "Normal User 👤"
+            end
+            userCredits = tonumber(c)
+        end
+    end
+end
+pcall(DecodeLocalData)
+
+-- เช็คอุปกรณ์ที่เล่น
+local deviceType = "Unknown ❓"
+if UIS.KeyboardEnabled and UIS.MouseEnabled then
+    deviceType = "PC 💻"
+elseif UIS.TouchEnabled and not UIS.MouseEnabled then
+    deviceType = "Mobile 📱"
+elseif UIS.GamepadEnabled then
+    deviceType = "Console 🎮"
+end
+
+local ProfileCard = Instance.new("Frame", TabContainer)
+ProfileCard.Size = UDim2.new(1, -20, 0, 130) 
 ProfileCard.Position = UDim2.new(0, 10, 0, 15)
 ProfileCard.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-ProfileCard.BackgroundTransparency = 0.5 -- โปร่งแสงให้ดูหรู
+ProfileCard.BackgroundTransparency = 0.5 
 Instance.new("UICorner", ProfileCard).CornerRadius = UDim.new(0, 10)
-ApplyThemeStroke(ProfileCard, 1, 0.4) -- ขอบบางๆ ให้การ์ด
+ApplyThemeStroke(ProfileCard, 1, 0.4) 
 
--- ==================================================
--- 2. รูปโปรไฟล์ผู้เล่น (Avatar)
--- ==================================================
-local AvatarFrame = Instance.new("Frame")
-AvatarFrame.Parent = ProfileCard
+local AvatarFrame = Instance.new("Frame", ProfileCard)
 AvatarFrame.Size = UDim2.new(0, 90, 0, 90)
 AvatarFrame.Position = UDim2.new(0, 15, 0.5, 0)
 AvatarFrame.AnchorPoint = Vector2.new(0, 0.5)
 AvatarFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 Instance.new("UICorner", AvatarFrame).CornerRadius = UDim.new(1, 0)
-
--- ขอบรูปโปรไฟล์แบบไล่สี
 ApplyThemeStroke(AvatarFrame, 2, 0)
 
-local AvatarImage = Instance.new("ImageLabel")
-AvatarImage.Parent = AvatarFrame
+local AvatarImage = Instance.new("ImageLabel", AvatarFrame)
 AvatarImage.Size = UDim2.new(1, 0, 1, 0)
 AvatarImage.BackgroundTransparency = 1
 Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
 
--- ใช้ task.spawn เพื่อไม่ให้ UI กระตุกตอนดึงรูป
 task.spawn(function()
     local content, isReady = Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
     if isReady then AvatarImage.Image = content end
 end)
 
--- ==================================================
--- 3. ข้อมูลชื่อ (Name & Username)
--- ==================================================
-local NameFrame = Instance.new("Frame")
-NameFrame.Parent = ProfileCard
+local NameFrame = Instance.new("Frame", ProfileCard)
 NameFrame.Size = UDim2.new(0.4, 0, 0, 60)
 NameFrame.Position = UDim2.new(0, 120, 0.5, -5)
 NameFrame.AnchorPoint = Vector2.new(0, 0.5)
 NameFrame.BackgroundTransparency = 1
 
-local NicknameLabel = Instance.new("TextLabel")
-NicknameLabel.Parent = NameFrame
+local NicknameLabel = Instance.new("TextLabel", NameFrame)
 NicknameLabel.Size = UDim2.new(1, 0, 0, 30)
-NicknameLabel.Position = UDim2.new(0, 0, 0, 0)
 NicknameLabel.BackgroundTransparency = 1
 NicknameLabel.Text = Player.DisplayName
 NicknameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -88,131 +97,102 @@ NicknameLabel.Font = Enum.Font.GothamBold
 NicknameLabel.TextSize = 22
 NicknameLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local UsernameLabel = Instance.new("TextLabel")
-UsernameLabel.Parent = NameFrame
+local UsernameLabel = Instance.new("TextLabel", NameFrame)
 UsernameLabel.Size = UDim2.new(1, 0, 0, 20)
 UsernameLabel.Position = UDim2.new(0, 0, 0, 30)
 UsernameLabel.BackgroundTransparency = 1
 UsernameLabel.Text = "@" .. Player.Name
-UsernameLabel.TextColor3 = Color3.fromRGB(255, 150, 220) -- สีชมพูอ่อนๆ ให้เข้าธีม
+UsernameLabel.TextColor3 = Color3.fromRGB(255, 150, 220) 
 UsernameLabel.Font = Enum.Font.GothamMedium
 UsernameLabel.TextSize = 14
 UsernameLabel.TextXAlignment = Enum.TextXAlignment.Left
 
--- ==================================================
--- 4. โซนสถิติ (Stats Badges) - เปลี่ยนจากกล่องเทาเป็นป้ายเรียงกัน
--- ==================================================
-local StatsContainer = Instance.new("Frame")
-StatsContainer.Parent = ProfileCard
-StatsContainer.Size = UDim2.new(0, 180, 1, -20)
+local StatsContainer = Instance.new("Frame", ProfileCard)
+StatsContainer.Size = UDim2.new(0, 180, 1, -10)
 StatsContainer.Position = UDim2.new(1, -10, 0.5, 0)
 StatsContainer.AnchorPoint = Vector2.new(1, 0.5)
 StatsContainer.BackgroundTransparency = 1
 
-local StatLayout = Instance.new("UIListLayout")
-StatLayout.Parent = StatsContainer
+local StatLayout = Instance.new("UIListLayout", StatsContainer)
 StatLayout.FillDirection = Enum.FillDirection.Vertical
 StatLayout.SortOrder = Enum.SortOrder.LayoutOrder
-StatLayout.Padding = UDim.new(0, 6)
+StatLayout.Padding = UDim.new(0, 4)
 StatLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
--- ฟังก์ชันสร้างป้าย Stat
-local function CreateStatBadge(icon, text)
-    local Badge = Instance.new("Frame")
-    Badge.Parent = StatsContainer
-    Badge.Size = UDim2.new(1, 0, 0, 26)
+local function CreateStatBadge(text)
+    local Badge = Instance.new("Frame", StatsContainer)
+    Badge.Size = UDim2.new(1, 0, 0, 24)
     Badge.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     Badge.BackgroundTransparency = 0.4
     Instance.new("UICorner", Badge).CornerRadius = UDim.new(0, 6)
     
-    local BadgeStroke = Instance.new("UIStroke")
-    BadgeStroke.Parent = Badge
+    local BadgeStroke = Instance.new("UIStroke", Badge)
     BadgeStroke.Color = Color3.fromRGB(255, 255, 255)
     BadgeStroke.Transparency = 0.85
     BadgeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    local Lbl = Instance.new("TextLabel")
-    Lbl.Parent = Badge
+    local Lbl = Instance.new("TextLabel", Badge)
     Lbl.Size = UDim2.new(1, -15, 1, 0)
     Lbl.Position = UDim2.new(0, 10, 0, 0)
     Lbl.BackgroundTransparency = 1
-    Lbl.Text = icon .. "  " .. text
+    Lbl.Text = text
     Lbl.TextColor3 = Color3.fromRGB(220, 220, 230)
     Lbl.Font = Enum.Font.GothamMedium
     Lbl.TextSize = 12
     Lbl.TextXAlignment = Enum.TextXAlignment.Left
-    Lbl.RichText = true -- เปิดใช้ RichText เพื่อเน้นตัวหนาเฉพาะจุด
+    Lbl.RichText = true 
 end
 
--- สร้างป้าย 3 อัน
-CreateStatBadge("⏳", "Age: <b>" .. tostring(Player.AccountAge) .. "</b> Days")
-CreateStatBadge("⭐", "Status: <b>Unlimited (Dev)</b>")
-CreateStatBadge("💎", "Credits: <b>9,999</b>")
+CreateStatBadge("⏳ Age: <b>" .. tostring(Player.AccountAge) .. "</b> Days")
+CreateStatBadge("⭐ Status: <b>" .. userType .. "</b>")
+CreateStatBadge("💎 Credits: <b>" .. (userCredits > 9000 and "Unlimited" or tostring(userCredits)) .. "</b>")
+CreateStatBadge("🎮 Device: <b>" .. deviceType .. "</b>")
 
--- ==================================================
--- 5. ส่วนแสดงเครดิตสคริปต์ (Footer & Divider) เลื่อนได้ & แก้ข้อความล้น
--- ==================================================
--- เปลี่ยนจาก Frame เป็น ScrollingFrame
-local FooterContainer = Instance.new("ScrollingFrame")
-FooterContainer.Parent = TabContainer
-FooterContainer.Size = UDim2.new(1, -20, 1, -150)
-FooterContainer.Position = UDim2.new(0, 10, 0, 145)
+local FooterContainer = Instance.new("ScrollingFrame", TabContainer)
+FooterContainer.Size = UDim2.new(1, -20, 1, -165)
+FooterContainer.Position = UDim2.new(0, 10, 0, 155)
 FooterContainer.BackgroundTransparency = 1
 FooterContainer.BorderSizePixel = 0
-FooterContainer.ScrollBarThickness = 3 -- ความหนาของแถบเลื่อน
-FooterContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 180) -- สีแถบเลื่อนให้เข้ากับธีมชมพู
+FooterContainer.ScrollBarThickness = 3 
+FooterContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 180) 
 FooterContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-FooterContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y -- ยืดพื้นที่เลื่อนอัตโนมัติเมื่อข้อความยาวขึ้น
+FooterContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y 
 
--- เส้นคั่นไล่สี
-local Divider = Instance.new("Frame")
-Divider.Parent = FooterContainer
-Divider.Size = UDim2.new(1, -60, 0, 1)
-Divider.Position = UDim2.new(0.5, 0, 0, 0)
-Divider.AnchorPoint = Vector2.new(0.5, 0)
-Divider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Divider.BorderSizePixel = 0
+local UIListLayoutFooter = Instance.new("UIListLayout", FooterContainer)
+UIListLayoutFooter.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayoutFooter.Padding = UDim.new(0, 8)
+UIListLayoutFooter.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-local DivGradient = Instance.new("UIGradient")
-DivGradient.Parent = Divider
-DivGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 35, 42)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 100, 180)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 42))
-})
+local SymbolDivider = Instance.new("TextLabel", FooterContainer)
+SymbolDivider.Size = UDim2.new(1, 0, 0, 15)
+SymbolDivider.BackgroundTransparency = 1
+SymbolDivider.Text = "✦ • ✨ • ✦"
+SymbolDivider.TextColor3 = Color3.fromRGB(255, 100, 180)
+SymbolDivider.Font = Enum.Font.Gotham
+SymbolDivider.TextSize = 10
 
--- ข้อความเครดิตแบบจัดเต็ม (ใส่ RichText)
-local BottomText = Instance.new("TextLabel")
-BottomText.Parent = FooterContainer
-BottomText.Size = UDim2.new(1, -10, 0, 0) -- เผื่อพื้นที่ด้านขวานิดหน่อยไม่ให้ทับแถบเลื่อน
-BottomText.Position = UDim2.new(0, 0, 0, 10)
+local BottomText = Instance.new("TextLabel", FooterContainer)
+BottomText.Size = UDim2.new(1, -10, 0, 0)
 BottomText.BackgroundTransparency = 1
 BottomText.TextColor3 = Color3.fromRGB(150, 150, 160)
 BottomText.Font = Enum.Font.Gotham
 BottomText.TextSize = 12
-BottomText.TextYAlignment = Enum.TextYAlignment.Top -- ดันข้อความไปเริ่มที่ขอบบน จะได้เลื่อนลงมาอ่านได้
+BottomText.TextYAlignment = Enum.TextYAlignment.Top 
 BottomText.RichText = true
+BottomText.TextWrapped = true 
+BottomText.AutomaticSize = Enum.AutomaticSize.Y 
 
--- *จุดสำคัญที่แก้บัคข้อความล้น*
-BottomText.TextWrapped = true -- ทำให้ข้อความที่ยาวเกินขอบถูกปัดขึ้นบรรทัดใหม่
-BottomText.AutomaticSize = Enum.AutomaticSize.Y -- ทำให้กล่องข้อความขยายความสูงตามข้อความจริงๆ
-
--- ใส่ข้อความบรรยายภาษาอังกฤษตรงนี้
 BottomText.Text = [[
 <font size='16' color='rgb(255,180,220)'><b>✨ POMELO HUB ✨</b></font>
 <font size='11' color='rgb(200,200,200)'><i>"The ultimate optimized and sleek scripting experience."</i></font>
 
 <b>Version:</b> Update 1  |  <b>Created on:</b> 25th
-<font color='rgb(180,180,180)'>Experience lag-free execution, highly optimized core features, and a modern, user-friendly interface designed for peak performance.</font>
 
 <b>🛠️ Pomelo Team 🛠️</b>
 <b>Head Developer:</b> Bilibil31
 <b>UI/UX Designers:</b> Nugget HUB
 <b>Core Logic Creators:</b> PoPoPoO HUB, GGBood
-
-<font color='rgb(255,150,150)'><i>💖 Thank you to all our supporters! 💖</i></font>
 ]]
-
 ]...
 TAB2 name=Main2
 [...
