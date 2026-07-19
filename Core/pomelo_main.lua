@@ -120,3 +120,5 @@ AddButton("Teleport to Safe Zone", function()
 end)
 
 ]...
+
+TAB1 name=Main2
