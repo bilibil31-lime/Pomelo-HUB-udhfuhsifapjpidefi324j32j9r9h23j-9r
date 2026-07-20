@@ -1,6 +1,8 @@
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local Stats = game:GetService("Stats")
+local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
 local LINK_PC = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_pc.lua"  
@@ -13,7 +15,6 @@ if UI_PARENT:FindFirstChild("PomeloMainUI") then UI_PARENT.PomeloMainUI:Destroy(
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "PomeloMainUI"
 ScreenGui.ResetOnSpawn = false
--- [แก้บัคที่นี่]: เพิ่ม IgnoreGuiInset เพื่อให้ UI ทะลุขอบเมนู Roblox ขึ้นไปเต็มจอ 100% จริงๆ
 ScreenGui.IgnoreGuiInset = true 
 ScreenGui.Parent = UI_PARENT
 
@@ -211,8 +212,48 @@ local function CreateActionBtn(text, posX, action)
     Btn.MouseLeave:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 45, 52)}):Play() end)
 end
 
-CreateActionBtn("PC", 170, function() loadstring(game:HttpGet(LINK_PC))() end)
-CreateActionBtn("PE", 225, function() loadstring(game:HttpGet(LINK_PE))() end)
+CreateActionBtn("PC", 155, function() loadstring(game:HttpGet(LINK_PC))() end)
+CreateActionBtn("PE", 205, function() loadstring(game:HttpGet(LINK_PE))() end)
+
+-- ==========================================
+-- [เพิ่มส่วนนี้]: แถบแสดงสถานะ Ping, RAM และ FPS
+-- ==========================================
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Parent = MainFrame
+StatsLabel.Size = UDim2.new(0, 240, 0, 24)
+StatsLabel.Position = UDim2.new(0, 260, 0, 10)
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.Font = Enum.Font.Jura
+StatsLabel.TextSize = 12
+StatsLabel.TextColor3 = Color3.fromRGB(255, 200, 240)
+StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatsLabel.ZIndex = 11
+
+local frameCount = 0
+local lastFPSCheck = os.clock()
+local currentFPS = 60
+
+task.spawn(function()
+    while ScreenGui.Parent do
+        local ping = 0
+        pcall(function()
+            ping = math.round(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+        
+        local ramUsed = math.round(Stats:GetTotalMemoryUsageMb())
+        
+        local now = os.clock()
+        frameCount = frameCount + 1
+        if now - lastFPSCheck >= 1 then
+            currentFPS = math.round(frameCount / (now - lastFPSCheck))
+            frameCount = 0
+            lastFPSCheck = now
+        end
+
+        StatsLabel.Text = string.format("Ping: %dms | RAM: %dMB | FPS: %d", ping, ramUsed, currentFPS)
+        task.wait(1)
+    end
+end)
 
 local function CreateWindowBtn(text, posX, hoverColor, action)
     local Btn = Instance.new("TextButton")
