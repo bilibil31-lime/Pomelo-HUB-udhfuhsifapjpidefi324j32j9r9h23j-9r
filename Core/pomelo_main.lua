@@ -342,7 +342,7 @@ local smoothHiddenTextures = {}
 CreateSection("🎨 Graphics")
 
 -- 1...\
-CreateToggle("Ultra Smooth Graphics", "Adjusts colors and makes the world smooth for better FPS.", false, function(state)
+CreateToggle("Make The WORD Sweet!", "Adjusts colors and makes the world smooth and SWEET (Try using it with FPS Boost so SWEET!)", false, function(state)
     local Lighting = game:GetService("Lighting")
     
     if state then
@@ -402,7 +402,7 @@ end)
 -- 1.../
 
 -- 2...\
-CreateToggle("Low Detail Mode (FPS Boost)", "Removes textures and turns materials to smooth plastic.", false, function(state)
+CreateToggle("FPS Boost", "Removes textures and turns materials to smooth plastic.", false, function(state)
     if state then
         for _, v in pairs(workspace:GetDescendants()) do
             if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
