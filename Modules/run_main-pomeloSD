@@ -151,6 +151,9 @@ MainFrame.InputChanged:Connect(function(input)
     end
 end)
 
+-- ==========================================
+-- Window Dragging with Screen Edge Clamping
+-- ==========================================
 local dragging, dragStart, startPos
 local DragArea = Instance.new("Frame")
 DragArea.Parent = MainFrame
@@ -165,12 +168,26 @@ DragArea.InputBegan:Connect(function(input)
         startPos = UDim2.new(0, MainFrame.AbsolutePosition.X + (MainFrame.AbsoluteSize.X/2), 0, MainFrame.AbsolutePosition.Y + (MainFrame.AbsoluteSize.Y/2))
     end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
+        local viewport = Camera.ViewportSize
+        local frameSize = MainFrame.AbsoluteSize
+        
+        -- จำกัดให้อยู่ภายในขอบจอเสมอ ไม่ให้หลุดออกไป
+        local minX = frameSize.X / 2
+        local maxX = viewport.X - (frameSize.X / 2)
+        local minY = frameSize.Y / 2
+        local maxY = viewport.Y - (frameSize.Y / 2)
+        
+        local newX = math.clamp(startPos.X.Offset + delta.X, minX, maxX)
+        local newY = math.clamp(startPos.Y.Offset + delta.Y, minY, maxY)
+        
+        MainFrame.Position = UDim2.new(0, newX, 0, newY)
     end
 end)
+
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
 end)
@@ -216,7 +233,7 @@ CreateActionBtn("PC", 155, function() loadstring(game:HttpGet(LINK_PC))() end)
 CreateActionBtn("PE", 205, function() loadstring(game:HttpGet(LINK_PE))() end)
 
 -- ==========================================
--- [เพิ่มส่วนนี้]: แถบแสดงสถานะ Ping, RAM และ FPS
+-- Stats Display (Fixed FPS Calculation)
 -- ==========================================
 local StatsLabel = Instance.new("TextLabel")
 StatsLabel.Parent = MainFrame
@@ -229,9 +246,19 @@ StatsLabel.TextColor3 = Color3.fromRGB(255, 200, 240)
 StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatsLabel.ZIndex = 11
 
-local frameCount = 0
-local lastFPSCheck = os.clock()
 local currentFPS = 60
+local frameCount = 0
+local lastTick = os.clock()
+
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    local now = os.clock()
+    if now - lastTick >= 1 then
+        currentFPS = math.round(frameCount / (now - lastTick))
+        frameCount = 0
+        lastTick = now
+    end
+end)
 
 task.spawn(function()
     while ScreenGui.Parent do
@@ -241,14 +268,6 @@ task.spawn(function()
         end)
         
         local ramUsed = math.round(Stats:GetTotalMemoryUsageMb())
-        
-        local now = os.clock()
-        frameCount = frameCount + 1
-        if now - lastFPSCheck >= 1 then
-            currentFPS = math.round(frameCount / (now - lastFPSCheck))
-            frameCount = 0
-            lastFPSCheck = now
-        end
 
         StatsLabel.Text = string.format("Ping: %dms | RAM: %dMB | FPS: %d", ping, ramUsed, currentFPS)
         task.wait(1)
