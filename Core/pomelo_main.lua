@@ -24,9 +24,9 @@ local function ApplyThemeStroke(parent, thickness, transparency)
 end
 
 -- ==========================================
--- SYSTEM: อ่านข้อมูลคีย์ให้ตรงกับหน้า Login
+-- SYSTEM: อ่านข้อมูลคีย์ให้ตรงกับหน้า Login (แบบใหม่)
 -- ==========================================
-local userType = "Unverified ❌" -- ลบคำว่า Guest ออกทั้งหมด
+local userType = "Unverified ❌" 
 local userCredits = 0
 local expireTime = 0
 local isPermanent = false
@@ -34,10 +34,38 @@ local isPermanent = false
 local FOLDER_NAME = "Pomelo_System"
 local FILE_NAME = FOLDER_NAME .. "/SysData.cfg"
 
+-- ดึงฐานข้อมูล Keyword สำหรับถอดรหัส
+local KEYWORD_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_keyword.lua"
+local KeywordMap = {}
+local ReverseMap = {}
+local SortedCodes = {}
+
+local successFetch, responseFetch = pcall(function() return game:HttpGet(KEYWORD_URL) end)
+if successFetch and responseFetch then
+    for line in responseFetch:gmatch("[^\r\n]+") do
+        local char, code = line:match("^(.)=(.+)$")
+        if char and code then
+            code = code:gsub("%s+$", "")
+            KeywordMap[char] = code
+            ReverseMap[code] = char
+            table.insert(SortedCodes, code)
+        end
+    end
+    table.sort(SortedCodes, function(a, b) return #a > #b end)
+end
+
+-- ฟังก์ชันถอดรหัสข้อมูลแบบใหม่ (รองรับระบบ Keyword)
 local function DecodeData(dataStr)
-    local hexData = string.match(dataStr, "POMELO_SECURE_V1\n([%a%d]+)\nEOF")
-    if not hexData then return nil end
-    local rawData = (hexData:gsub("%x%x", function(c) return string.char(tonumber(c, 16)) end))
+    local encodedStr = string.match(dataStr, "POMELO_SECURE_V1\n([^\n]+)\nEOF")
+    if not encodedStr then return nil end
+    
+    local rawData = encodedStr
+    -- แปลงรหัสกลับเป็นอักษรเดิม ตามลำดับความยาว
+    for _, code in ipairs(SortedCodes) do
+        local safeCode = code:gsub("[%-%^%$%(%)%%%.%[%]%*%+%?]", "%%%0")
+        rawData = rawData:gsub(safeCode, ReverseMap[code])
+    end
+    
     local k, t, e, c = string.match(rawData, "K:([^|]+)|T:([^|]+)|E:(%d+)|C:(%d+)")
     if k and t and e and c then return {key = k, type = t, expire = tonumber(e), credits = tonumber(c)} end
     return nil
@@ -52,20 +80,17 @@ local function CheckUserStatus()
                 expireTime = data.expire
                 userCredits = data.credits
                 
-                -- เช็คประเภทและตั้งค่าให้ตรง (รองรับทั้งไฟล์เซฟเก่าและใหม่)
+                -- เช็คประเภทและตั้งค่าให้ตรง
                 if data.type == "admin" then
                     userType = "Admin 👑"
                     isPermanent = true
                 elseif data.type == "friend" then
                     userType = "Friend 🤝"
-                    -- ถ้าเวลาเกิน 10 ปี ให้ถือว่าถาวร
                     if expireTime > os.time() + (3650 * 24 * 3600) then isPermanent = true end
                 elseif data.type == "user" or data.type == "normal" then 
-                    -- รองรับ data.type == "normal" จากไฟล์เก่าที่คุณเคยรันก่อนหน้านี้ด้วย
                     userType = "Normal User 👤" 
                     isPermanent = false
                 else
-                    -- ถ้าหลุดเคสอื่นมา แต่มี expireTime ก็ให้นับเป็น Normal User ไว้ก่อน
                     userType = "Normal User 👤"
                     isPermanent = false
                 end
@@ -175,9 +200,10 @@ local function CreateStatBadge(text)
     return Lbl
 end
 
+-- แก้ไขให้แสดงตัวเลขเครดิตแบบตรงไปตรงมา ไม่เปลี่ยนเป็นคำว่า Unlimited แล้ว
 local TimeLeftLabel = CreateStatBadge("⏳ Time Left: <b>Calculating...</b>")
 local StatusLabel = CreateStatBadge("⭐ Status: <b>" .. userType .. "</b>")
-local CreditsLabel = CreateStatBadge("💎 Credits: <b>" .. (userCredits > 9000 and "Unlimited" or tostring(userCredits)) .. "</b>")
+local CreditsLabel = CreateStatBadge("💎 Credits: <b>" .. tostring(userCredits) .. "</b>")
 CreateStatBadge("🎮 Device: <b>" .. deviceType .. "</b>")
 
 -- ==========================================
