@@ -295,19 +295,27 @@ BottomText.TextWrapped = true
 BottomText.AutomaticSize = Enum.AutomaticSize.Y 
 
 -- ==========================================
--- UPDATE: ดึงข้อความจาก Github (Live Message)
+-- UPDATE: ดึงข้อความจาก Github (Live Message) แก้ไขระบบ Cache
 -- ==========================================
 local LIVE_MESSAGE_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_message123.lua"
 
 BottomText.Text = "<i>Loading live data from server...</i>"
 
 task.spawn(function()
+    -- เติม ?t=สุ่มตัวเลข เพื่อบังคับให้ข้ามระบบ Cache ของ GitHub และดึงไฟล์ล่าสุดเสมอ
+    local cacheBypassUrl = LIVE_MESSAGE_URL .. "?t=" .. tostring(os.time())
+    
     local success, response = pcall(function()
-        return game:HttpGet(LIVE_MESSAGE_URL)
+        return game:HttpGet(cacheBypassUrl)
     end)
     
     if success and response and response ~= "" then
-        BottomText.Text = response
+        -- ป้องกันกรณีที่ใส่ลิงก์ผิดแล้วมันไปดึงหน้า 404 ของ GitHub มา
+        if string.find(response, "404: Not Found") then
+            BottomText.Text = "<font color='rgb(255,100,100)'>[ERROR] File 404 Not Found - ไม่พบไฟล์บน GitHub ตรวจสอบชื่อไฟล์อีกครั้ง</font>"
+        else
+            BottomText.Text = response
+        end
     else
         BottomText.Text = "<font color='rgb(255,100,100)'>[ERROR] Failed to fetch live message from server.</font>"
     end
