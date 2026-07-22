@@ -521,48 +521,49 @@ TAB3 name=Main3
 [...
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Player = Players.LocalPlayer
 
 local TabContainer = _G.CurrentPomeloTab
 if not TabContainer then return end
 
 -- ==========================================
--- SYSTEM: ตั้งค่าโฟลเดอร์และไฟล์บันทึกข้อมูล
+-- SYSTEM: Setup Folders & Files
 -- ==========================================
 local FOLDER_NAME = "Pomelo_System"
 local SYSDATA_FILE = FOLDER_NAME .. "/SysData.cfg"
-local STOREDATA_FILE = FOLDER_NAME .. "/StoreData.cfg" -- ไฟล์บันทึกการซื้อสคริปต์
+local STOREDATA_FILE = FOLDER_NAME .. "/StoreData.cfg"
 
 if makefolder and not isfolder(FOLDER_NAME) then
     pcall(makefolder, FOLDER_NAME)
 end
 
 -- ==========================================
--- UI HELPER: ฟังก์ชันสร้าง UIStroke ธีมชมพู
+-- UI HELPER: Modern Stroke
 -- ==========================================
-local function ApplyThemeStroke(parent, thickness, transparency)
+local function ApplyThemeStroke(parent, thickness, transparency, colorOverride)
     local Stroke = Instance.new("UIStroke", parent)
-    Stroke.Color = Color3.fromRGB(255, 255, 255)
+    Stroke.Color = colorOverride or Color3.fromRGB(255, 255, 255)
     Stroke.Thickness = thickness or 1
     Stroke.Transparency = transparency or 0.2
     Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border 
     
-    local Gradient = Instance.new("UIGradient", Stroke)
-    Gradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 180)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 200, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 180))
-    })
-    Gradient.Rotation = 45
+    if not colorOverride then
+        local Gradient = Instance.new("UIGradient", Stroke)
+        Gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 100, 255)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 100, 180)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 100, 255))
+        })
+        Gradient.Rotation = 45
+    end
 end
 
 -- ==========================================
--- SYSTEM: ระบบถอดรหัส / เข้ารหัส (mod_keyword.lua)
+-- SYSTEM: Encryption / Decryption
 -- ==========================================
 local KEYWORD_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_keyword.lua"
-local KeywordMap = {}
-local ReverseMap = {}
-local SortedCodes = {}
+local KeywordMap, ReverseMap, SortedCodes = {}, {}, {}
 
 local successFetch, responseFetch = pcall(function() return game:HttpGet(KEYWORD_URL) end)
 if successFetch and responseFetch then
@@ -578,7 +579,6 @@ if successFetch and responseFetch then
     table.sort(SortedCodes, function(a, b) return #a > #b end)
 end
 
--- ฟังก์ชันสำหรับเข้ารหัสข้อมูล
 local function EncodeData(rawData)
     local encoded = ""
     for i = 1, #rawData do
@@ -588,7 +588,6 @@ local function EncodeData(rawData)
     return "POMELO_SECURE_V1\n" .. encoded .. "\nEOF"
 end
 
--- ฟังก์ชันสำหรับถอดรหัสข้อมูล
 local function DecodeData(dataStr)
     if not dataStr then return nil end
     local encodedStr = string.match(dataStr, "POMELO_SECURE_V1\n([^\n]+)\nEOF")
@@ -603,7 +602,7 @@ local function DecodeData(dataStr)
 end
 
 -- ==========================================
--- SYSTEM: จัดการอ่าน-แก้ไข SysData.cfg (เครดิต)
+-- SYSTEM: User Credits Management
 -- ==========================================
 local function GetSysData()
     if isfile and isfile(SYSDATA_FILE) then
@@ -623,15 +622,41 @@ end
 
 local function SaveSysData(data)
     local rawStr = string.format("K:%s|T:%s|E:%d|C:%d", data.key, data.type, data.expire, data.credits)
-    local encodedStr = EncodeData(rawStr)
-    if writefile then
-        pcall(writefile, SYSDATA_FILE, encodedStr)
-    end
+    if writefile then pcall(writefile, SYSDATA_FILE, EncodeData(rawStr)) end
 end
 
 -- ==========================================
--- SYSTEM: จัดการบันทึกสคริปต์ที่เคยซื้อ (StoreData.cfg)
+-- SYSTEM: Time Calculation & Store Data
 -- ==========================================
+-- แปลง String เวลา (เช่น 20d, 1m) เป็นวินาที
+local function ParseTimeToSeconds(timeStr)
+    if not timeStr or timeStr == "" then return -1 end -- -1 = ถาวร (Lifetime)
+    local num, unit = timeStr:match("(%d+)([dhm])")
+    if num and unit then
+        num = tonumber(num)
+        if unit == "d" then return num * 86400
+        elseif unit == "h" then return num * 3600
+        elseif unit == "m" then return num * 60 end
+    end
+    return -1 
+end
+
+-- จัดรูปแบบเวลาให้สวยงาม
+local function FormatTimeLeft(expireTime)
+    if expireTime == -1 then return "Lifetime" end
+    local diff = expireTime - os.time()
+    if diff <= 0 then return "Expired" end
+    
+    local d = math.floor(diff / 86400)
+    local h = math.floor((diff % 86400) / 3600)
+    local m = math.floor((diff % 3600) / 60)
+    
+    if d > 0 then return string.format("%dd %dh", d, h)
+    elseif h > 0 then return string.format("%dh %dm", h, m)
+    else return string.format("%dm left", m) end
+end
+
+-- อ่าน/เขียน ประวัติการซื้อ แบบมีเวลาหมดอายุ (Format: InternalName:ExpireTime|...)
 local function GetPurchasedScripts()
     local purchased = {}
     if isfile and isfile(STOREDATA_FILE) then
@@ -639,8 +664,11 @@ local function GetPurchasedScripts()
         if success then
             local rawData = DecodeData(dataStr)
             if rawData then
-                for scriptName in string.gmatch(rawData, "([^|]+)") do
-                    purchased[scriptName] = true
+                for itemBlock in string.gmatch(rawData, "([^|]+)") do
+                    local name, exp = string.match(itemBlock, "(.-):(.+)")
+                    if name and exp then
+                        purchased[name] = tonumber(exp)
+                    end
                 end
             end
         end
@@ -648,117 +676,100 @@ local function GetPurchasedScripts()
     return purchased
 end
 
-local function AddPurchasedScript(scriptName)
+local function AddPurchasedScript(internalName, durationSeconds)
     local purchased = GetPurchasedScripts()
-    purchased[scriptName] = true
     
-    local list = {}
-    for name, _ in pairs(purchased) do
-        table.insert(list, name)
+    local expireTimestamp = -1
+    if durationSeconds > 0 then
+        expireTimestamp = os.time() + durationSeconds
     end
     
-    local rawStr = table.concat(list, "|")
-    local encodedStr = EncodeData(rawStr)
+    purchased[internalName] = expireTimestamp
+    
+    local list = {}
+    for name, exp in pairs(purchased) do
+        table.insert(list, name .. ":" .. tostring(exp))
+    end
+    
     if writefile then
-        pcall(writefile, STOREDATA_FILE, encodedStr)
+        pcall(writefile, STOREDATA_FILE, EncodeData(table.concat(list, "|")))
     end
 end
 
 -- ==========================================
--- SYSTEM: ดึงข้อมูลสินค้าจาก pomelo_strore.lua
+-- SYSTEM: Fetch Store Data from GitHub
 -- ==========================================
 local STORE_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Core/pomelo_strore.lua"
 
 local function FetchStoreItems()
     local items = {}
-    local cacheBypassUrl = STORE_URL .. "?t=" .. tostring(os.time())
-    local success, response = pcall(function() return game:HttpGet(cacheBypassUrl) end)
+    local success, response = pcall(function() return game:HttpGet(STORE_URL .. "?t=" .. tostring(os.time())) end)
     
     if success and response and not response:find("404: Not Found") then
         local currentItem = nil
         
         for line in response:gmatch("[^\r\n]+") do
-            line = line:match("^%s*(.-)%s*$") -- Trim
+            line = line:match("^%s*(.-)%s*$")
             
-            -- อ่านบรรทัดชื่อสคริปต์
-            if line:find("^script%d+%s+name=") or line:find("^name=") then
-                if currentItem and currentItem.name then
-                    table.insert(items, currentItem)
-                end
+            if line:find("^script%d+%s+name=") then
+                if currentItem and currentItem.internalName then table.insert(items, currentItem) end
                 currentItem = {
-                    name = line:match("name=(.+)"),
-                    code = "",
-                    description = "ไม่มีคำอธิบาย",
-                    price = 0
+                    internalName = line:match("name=(.+)"), -- ใช้เป็น ID อ้างอิง
+                    code = "", description = "No Description", price = 0, timeRaw = "", uidmap = nil
                 }
             elseif currentItem then
-                -- อ่านบรรทัดโค้ดสคริปต์ (เริ่มต้นด้วย =)
-                if line:sub(1, 1) == "=" then
-                    currentItem.code = line:sub(2)
-                -- อ่านคำอธิบาย
-                elseif line:lower():find("^description=") then
-                    currentItem.description = line:match("^[Dd]escription=(.+)")
-                -- อ่านราคา
-                elseif line:lower():find("^price=") then
-                    currentItem.price = tonumber(line:match("^[Pp]rice=(%d+)")) or 0
+                if line:sub(1, 1) == "=" then currentItem.code = line:sub(2)
+                elseif line:lower():find("^description=") then currentItem.description = line:match("=(.+)")
+                elseif line:lower():find("^price=") then currentItem.price = tonumber(line:match("=(%d+)")) or 0
+                elseif line:lower():find("^time=") then currentItem.timeRaw = line:match("=(.+)")
+                elseif line:lower():find("^uidmap=") then currentItem.uidmap = tonumber(line:match("=(%d+)"))
                 end
             end
         end
-        
-        if currentItem and currentItem.name then
-            table.insert(items, currentItem)
-        end
+        if currentItem and currentItem.internalName then table.insert(items, currentItem) end
     end
-    
     return items
 end
 
 -- ==========================================
--- UI: สร้างหน้าต่าง Script Store (ตามภาพที่ 1)
+-- UI: Build Store Interface
 -- ==========================================
-
--- ส่วนหัวข้อหลัก "script store"
 local HeaderLabel = Instance.new("TextLabel", TabContainer)
 HeaderLabel.Size = UDim2.new(1, 0, 0, 35)
 HeaderLabel.Position = UDim2.new(0, 0, 0, 10)
 HeaderLabel.BackgroundTransparency = 1
-HeaderLabel.Text = "script store"
+HeaderLabel.Text = "Script Store"
 HeaderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 HeaderLabel.Font = Enum.Font.GothamBold
-HeaderLabel.TextSize = 24
+HeaderLabel.TextSize = 22
 
--- แสดงเครดิตคงเหลือปัจจุบัน
-local SysData = GetSysData()
 local CreditDisplay = Instance.new("TextLabel", TabContainer)
 CreditDisplay.Size = UDim2.new(1, -20, 0, 20)
 CreditDisplay.Position = UDim2.new(0, 10, 0, 45)
 CreditDisplay.BackgroundTransparency = 1
-CreditDisplay.Text = "💎 เครดิตของคุณ: " .. tostring(SysData.credits) .. " Credits"
-CreditDisplay.TextColor3 = Color3.fromRGB(255, 200, 255)
+CreditDisplay.TextColor3 = Color3.fromRGB(200, 220, 255)
 CreditDisplay.Font = Enum.Font.GothamMedium
-CreditDisplay.TextSize = 13
+CreditDisplay.TextSize = 14
 
--- Container สำหรับลิสต์รายการสินค้าแบบ Scrolling
 local ScrollContainer = Instance.new("ScrollingFrame", TabContainer)
 ScrollContainer.Size = UDim2.new(1, -20, 1, -80)
 ScrollContainer.Position = UDim2.new(0, 10, 0, 75)
 ScrollContainer.BackgroundTransparency = 1
 ScrollContainer.BorderSizePixel = 0
-ScrollContainer.ScrollBarThickness = 4
-ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 180)
+ScrollContainer.ScrollBarThickness = 3
+ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 170)
 ScrollContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
 ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 local ListLayout = Instance.new("UIListLayout", ScrollContainer)
 ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ListLayout.Padding = UDim.new(0, 10)
+ListLayout.Padding = UDim.new(0, 12)
 ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 -- ==========================================
--- RENDER: ฟังก์ชันสร้างการ์ดสินค้า
+-- RENDER: Create Store Cards
 -- ==========================================
 local function RenderStoreList()
-    -- ลบไอเทมเก่าออกก่อน
     for _, child in ipairs(ScrollContainer:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
@@ -767,123 +778,179 @@ local function RenderStoreList()
     local purchasedMap = GetPurchasedScripts()
     local currentUserData = GetSysData()
     
-    CreditDisplay.Text = "💎 เครดิตของคุณ: " .. tostring(currentUserData.credits) .. " Credits"
+    CreditDisplay.Text = "Balance: " .. tostring(currentUserData.credits) .. " 💎"
 
-    for idx, item in ipairs(storeItems) do
-        local isPurchased = purchasedMap[item.name] or false
+    for _, item in ipairs(storeItems) do
+        local durationSeconds = ParseTimeToSeconds(item.timeRaw)
+        local expireTimestamp = purchasedMap[item.internalName]
         
-        -- ตัวการ์ดสินค้าหลัก
-        local Card = Instance.new("Frame", ScrollContainer)
-        Card.Size = UDim2.new(1, -5, 0, 80)
-        Card.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-        Card.BackgroundTransparency = 0.2
-        Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 8)
-        
-        -- ถ้าซื้อแล้วให้ Stroke เป็นสีเขียว ถ้ายังไม่ซื้อให้เป็นขอบธีมปกติ
-        if isPurchased then
-            local Stroke = Instance.new("UIStroke", Card)
-            Stroke.Color = Color3.fromRGB(100, 255, 150)
-            Stroke.Thickness = 1
-            Stroke.Transparency = 0.3
-        else
-            ApplyThemeStroke(Card, 1, 0.4)
+        -- เช็คสถานะการครอบครอง
+        local isOwned = false
+        local isExpired = false
+        if expireTimestamp then
+            if expireTimestamp == -1 or expireTimestamp > os.time() then
+                isOwned = true
+            else
+                isExpired = true
+            end
         end
+        
+        -- Card Background
+        local Card = Instance.new("Frame", ScrollContainer)
+        Card.Size = UDim2.new(1, -4, 0, 100)
+        Card.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+        Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 8)
+        ApplyThemeStroke(Card, 1, 0.5, isOwned and Color3.fromRGB(100, 255, 150) or nil)
 
-        -- กล่องไอคอนสีชมพู (ตามรูปที่ 1)
+        -- Map Icon Container
         local IconBox = Instance.new("Frame", Card)
-        IconBox.Size = UDim2.new(0, 60, 0, 60)
-        IconBox.Position = UDim2.new(0, 10, 0.5, 0)
+        IconBox.Size = UDim2.new(0, 76, 0, 76)
+        IconBox.Position = UDim2.new(0, 12, 0.5, 0)
         IconBox.AnchorPoint = Vector2.new(0, 0.5)
-        IconBox.BackgroundColor3 = Color3.fromRGB(255, 105, 180)
-        Instance.new("UICorner", IconBox).CornerRadius = UDim.new(0, 6)
+        IconBox.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        Instance.new("UICorner", IconBox).CornerRadius = UDim.new(0, 8)
+        
+        local MapImage = Instance.new("ImageLabel", IconBox)
+        MapImage.Size = UDim2.new(1, 0, 1, 0)
+        MapImage.BackgroundTransparency = 1
+        MapImage.Image = "rbxassetid://0" -- Placeholder
+        Instance.new("UICorner", MapImage).CornerRadius = UDim.new(0, 8)
 
-        local IconText = Instance.new("TextLabel", IconBox)
-        IconText.Size = UDim2.new(1, 0, 1, 0)
-        IconText.BackgroundTransparency = 1
-        IconText.Text = "📜"
-        IconText.TextSize = 26
+        -- Game Name (Title)
+        local TitleLabel = Instance.new("TextLabel", Card)
+        TitleLabel.Size = UDim2.new(1, -220, 0, 25)
+        TitleLabel.Position = UDim2.new(0, 100, 0, 15)
+        TitleLabel.BackgroundTransparency = 1
+        TitleLabel.Text = "Loading Map Data..."
+        TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TitleLabel.Font = Enum.Font.GothamBold
+        TitleLabel.TextSize = 16
+        TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- ชื่อสคริปต์
-        local NameLabel = Instance.new("TextLabel", Card)
-        NameLabel.Size = UDim2.new(0.45, 0, 0, 25)
-        NameLabel.Position = UDim2.new(0, 80, 0, 15)
-        NameLabel.BackgroundTransparency = 1
-        NameLabel.Text = item.name
-        NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        NameLabel.Font = Enum.Font.GothamBold
-        NameLabel.TextSize = 16
-        NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        -- Fetch Map Data from Roblox API using uidmap
+        task.spawn(function()
+            if item.uidmap then
+                local s, info = pcall(function() return MarketplaceService:GetProductInfo(item.uidmap) end)
+                if s and info then
+                    TitleLabel.Text = info.Name
+                    MapImage.Image = "rbxassetid://" .. info.IconImageAssetId
+                else
+                    TitleLabel.Text = item.internalName -- Fallback ถ้าดึงไม่ติด
+                end
+            else
+                TitleLabel.Text = item.internalName -- Fallback ถ้าไม่มี uidmap
+            end
+        end)
 
-        -- คำอธิบายสคริปต์
+        -- Description
         local DescLabel = Instance.new("TextLabel", Card)
-        DescLabel.Size = UDim2.new(0.45, 0, 0, 20)
-        DescLabel.Position = UDim2.new(0, 80, 0, 42)
+        DescLabel.Size = UDim2.new(1, -220, 0, 20)
+        DescLabel.Position = UDim2.new(0, 100, 0, 40)
         DescLabel.BackgroundTransparency = 1
         DescLabel.Text = item.description
         DescLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
         DescLabel.Font = Enum.Font.Gotham
         DescLabel.TextSize = 12
         DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+        DescLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
-        -- ข้อความแสดงราคา
-        local PriceLabel = Instance.new("TextLabel", Card)
-        PriceLabel.Size = UDim2.new(0, 80, 0, 30)
-        PriceLabel.Position = UDim2.new(1, -120, 0.5, 0)
-        PriceLabel.AnchorPoint = Vector2.new(1, 0.5)
-        PriceLabel.BackgroundTransparency = 1
-        PriceLabel.Text = isPurchased and "ถาวร ♾️" or (tostring(item.price) .. " เครดิต")
-        PriceLabel.TextColor3 = isPurchased and Color3.fromRGB(150, 255, 150) or Color3.fromRGB(255, 255, 255)
-        PriceLabel.Font = Enum.Font.GothamMedium
-        PriceLabel.TextSize = 14
+        -- Time Info Label
+        local TimeInfoLabel = Instance.new("TextLabel", Card)
+        TimeInfoLabel.Size = UDim2.new(1, -220, 0, 20)
+        TimeInfoLabel.Position = UDim2.new(0, 100, 0, 65)
+        TimeInfoLabel.BackgroundTransparency = 1
+        TimeInfoLabel.Font = Enum.Font.GothamMedium
+        TimeInfoLabel.TextSize = 11
+        TimeInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        if isOwned then
+            TimeInfoLabel.Text = "⏳ Valid: " .. FormatTimeLeft(expireTimestamp)
+            TimeInfoLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+        else
+            local timeText = (durationSeconds == -1) and "Lifetime" or (item.timeRaw)
+            TimeInfoLabel.Text = "⏱️ Duration: " .. timeText
+            TimeInfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
 
-        -- ปุ่มแอ็กชัน (ปุ่มแม่กุญแจ / รันสคริปต์ / ซื้อ)
+        -- Action Button (Rectangular)
         local ActionBtn = Instance.new("TextButton", Card)
-        ActionBtn.Size = UDim2.new(0, 36, 0, 36)
+        ActionBtn.Size = UDim2.new(0, 110, 0, 34)
         ActionBtn.Position = UDim2.new(1, -15, 0.5, 0)
         ActionBtn.AnchorPoint = Vector2.new(1, 0.5)
-        ActionBtn.BackgroundColor3 = isPurchased and Color3.fromRGB(0, 162, 232) or Color3.fromRGB(255, 70, 130)
         ActionBtn.Font = Enum.Font.GothamBold
-        ActionBtn.TextSize = 16
-        ActionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ActionBtn.Text = isPurchased and "▶" or "🔒"
-        Instance.new("UICorner", ActionBtn).CornerRadius = UDim.new(1, 0)
+        ActionBtn.TextSize = 13
+        Instance.new("UICorner", ActionBtn).CornerRadius = UDim.new(0, 6)
+        
+        -- Setup Button visual based on status
+        if isOwned then
+            ActionBtn.BackgroundColor3 = Color3.fromRGB(40, 130, 255)
+            ActionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ActionBtn.Text = "Execute 🚀"
+        elseif isExpired then
+            ActionBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+            ActionBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+            ActionBtn.Text = "Repurchase"
+            TimeInfoLabel.Text = "❌ Expired"
+            TimeInfoLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        else
+            ActionBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 130)
+            ActionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ActionBtn.Text = "Buy • " .. item.price .. "💎"
+        end
 
-        -- เหตุการณ์เมื่อกดปุ่มซื้อ / รันสคริปต์
+        -- Button Click Event
         ActionBtn.MouseButton1Click:Connect(function()
-            if isPurchased then
-                -- ถ้าซื้อแล้ว -> รันสคริปต์ทันที
+            if isOwned then
+                -- รันสคริปต์
                 if item.code and item.code ~= "" then
                     local func, err = loadstring(item.code)
                     if func then
                         task.spawn(func)
                     else
-                        warn("[Store] รันสคริปต์ล้มเหลว:", err)
+                        warn("[Store] Execute failed:", err)
                     end
                 end
             else
-                -- ถ้ายังไม่ซื้อ -> เช็คเครดิตและดำเนินการสั่งซื้อ
+                -- กระบวนการซื้อ
                 local userNow = GetSysData()
                 if userNow.credits >= item.price then
-                    -- 1. หักเครดิต
+                    -- หักเครดิต & เซฟ
                     userNow.credits = userNow.credits - item.price
                     SaveSysData(userNow)
                     
-                    -- 2. บันทึกประวัติการซื้อสคริปต์ลง StoreData.cfg
-                    AddPurchasedScript(item.name)
+                    -- บันทึกการซื้อ (อ้างอิงจากชื่อ internalName และบวกเวลา)
+                    AddPurchasedScript(item.internalName, durationSeconds)
                     
-                    -- 3. อัปเดต UI หน้าจอใหม่
-                    RenderStoreList()
+                    ActionBtn.Text = "Success!"
+                    ActionBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
+                    task.wait(0.5)
+                    RenderStoreList() -- รีเฟรชหน้าต่างใหม่
                 else
-                    -- เครดิตไม่พอ
-                    ActionBtn.Text = "❌"
+                    -- เงินไม่พอ
+                    local oldText = ActionBtn.Text
+                    local oldColor = ActionBtn.BackgroundColor3
+                    ActionBtn.Text = "Not enough 💎"
+                    ActionBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
                     task.wait(1)
-                    ActionBtn.Text = "🔒"
+                    ActionBtn.Text = oldText
+                    ActionBtn.BackgroundColor3 = oldColor
                 end
             end
         end)
     end
 end
 
--- เริ่มต้นโหลดรายการสินค้าเข้า UI
+-- ลูปอัปเดตเวลาแบบ Real-time (สำหรับชิ้นที่เช่าแบบจำกัดเวลา)
+task.spawn(function()
+    while task.wait(60) do -- รีเฟรช UI ทุกๆ 1 นาทีเพื่ออัปเดตเวลา
+        if ScrollContainer and ScrollContainer.Parent then
+            RenderStoreList()
+        else
+            break
+        end
+    end
+end)
+
+-- Initial Load
 task.spawn(RenderStoreList)
 ]...
