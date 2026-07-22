@@ -26,7 +26,7 @@ end
 -- ==========================================
 -- SYSTEM: อ่านข้อมูลคีย์ให้ตรงกับหน้า Login
 -- ==========================================
-local userType = "Unverified ❌" 
+local userType = "Unverified" 
 local userCredits = 0
 local expireTime = 0
 local isPermanent = false
@@ -78,16 +78,16 @@ local function CheckUserStatus()
                 userCredits = data.credits
                 
                 if data.type == "admin" then
-                    userType = "Admin 👑"
+                    userType = "Admin"
                     isPermanent = true
                 elseif data.type == "friend" then
-                    userType = "Friend 🤝"
+                    userType = "Friend"
                     if expireTime > os.time() + (3650 * 24 * 3600) then isPermanent = true end
                 elseif data.type == "user" or data.type == "normal" then 
-                    userType = "Normal User 👤" 
+                    userType = "Normal User" 
                     isPermanent = false
                 else
-                    userType = "Normal User 👤"
+                    userType = "Normal User"
                     isPermanent = false
                 end
             end
@@ -99,19 +99,19 @@ pcall(CheckUserStatus)
 -- ==========================================
 -- SYSTEM: เช็คอุปกรณ์ที่เล่น
 -- ==========================================
-local deviceType = "Unknown ❓"
+local deviceType = "Unknown"
 if UIS.KeyboardEnabled and UIS.MouseEnabled then
-    deviceType = "PC 💻"
+    deviceType = "PC"
 elseif UIS.TouchEnabled and not UIS.MouseEnabled then
-    deviceType = "Mobile 📱"
+    deviceType = "Mobile"
 elseif UIS.GamepadEnabled then
-    deviceType = "Console 🎮"
+    deviceType = "Console"
 end
 
 -- ==========================================
 -- SYSTEM: เช็คตัวรัน (Executor Detection)
 -- ==========================================
-local executorName = "Unknown ❓"
+local executorName = "Unknown"
 local function GetExecutorName()
     local success, name = pcall(function()
         if identifyexecutor then return identifyexecutor() end
@@ -125,7 +125,7 @@ local function GetExecutorName()
     if success and type(name) == "string" and name ~= "" then
         return name
     end
-    return "Unknown ❓"
+    return "Unknown"
 end
 executorName = GetExecutorName()
 
@@ -133,7 +133,7 @@ executorName = GetExecutorName()
 -- UI: สร้างหน้าต่าง
 -- ==========================================
 local ProfileCard = Instance.new("Frame", TabContainer)
-ProfileCard.Size = UDim2.new(1, -20, 0, 150) -- ปรับความสูงเพิ่มนิดหน่อยเผื่อรองรับ Badge ที่ 5
+ProfileCard.Size = UDim2.new(1, -20, 0, 150)
 ProfileCard.Position = UDim2.new(0, 10, 0, 15)
 ProfileCard.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
 ProfileCard.BackgroundTransparency = 0.5 
@@ -222,28 +222,38 @@ local function CreateStatBadge(text)
     return Lbl
 end
 
-local TimeLeftLabel = CreateStatBadge("⏳ Time Left: <b>Calculating...</b>")
-local StatusLabel = CreateStatBadge("⭐ Status: <b>" .. userType .. "</b>")
-local CreditsLabel = CreateStatBadge("💎 Credits: <b>" .. tostring(userCredits) .. "</b>")
-CreateStatBadge("🎮 Device: <b>" .. deviceType .. "</b>")
-CreateStatBadge("🚀 Executor: <b>" .. executorName .. "</b>") -- เพิ่มบรรทัดบอกตัวรันตรงนี้
+local TimeLeftLabel = CreateStatBadge("Time Left: <b>Calculating...</b>")
+local StatusLabel = CreateStatBadge("Status: <b>" .. userType .. "</b>")
+local CreditsLabel = CreateStatBadge("Credits: <b>" .. tostring(userCredits) .. "</b>")
+CreateStatBadge("Device: <b>" .. deviceType .. "</b>")
+CreateStatBadge("Executor: <b>" .. executorName .. "</b>")
 
 -- ==========================================
--- UPDATE: ระบบ Loop คำนวณเวลานับถอยหลัง
+-- UPDATE: ระบบ Loop คำนวณเวลานับถอยหลัง & เช็คเครดิต Real-time
 -- ==========================================
 task.spawn(function()
     while task.wait(1) do
         if not TimeLeftLabel or not TimeLeftLabel.Parent then break end
         
-        if expireTime == 0 or userType == "Unverified ❌" then
-            TimeLeftLabel.Text = "⏳ Time Left: <b>No Key ❌</b>"
+        -- อ่านข้อมูลเครดิตและสถานะแบบ Real-time
+        pcall(CheckUserStatus)
+        if CreditsLabel then
+            CreditsLabel.Text = "Credits: <b>" .. tostring(userCredits) .. "</b>"
+        end
+        if StatusLabel then
+            StatusLabel.Text = "Status: <b>" .. userType .. "</b>"
+        end
+        
+        -- ระบบคำนวณเวลาถอยหลัง
+        if expireTime == 0 or userType == "Unverified" then
+            TimeLeftLabel.Text = "Time Left: <b>No Key</b>"
         elseif isPermanent then
-            TimeLeftLabel.Text = "⏳ Time Left: <b>Lifetime ♾️</b>"
+            TimeLeftLabel.Text = "Time Left: <b>Lifetime</b>"
         else
             local diff = expireTime - os.time()
             
             if diff <= 0 then
-                TimeLeftLabel.Text = "⏳ Time Left: <b>Expired ❌</b>"
+                TimeLeftLabel.Text = "Time Left: <b>Expired</b>"
             else
                 local days = math.floor(diff / 86400)
                 local hours = math.floor((diff % 86400) / 3600)
@@ -251,9 +261,9 @@ task.spawn(function()
                 local seconds = diff % 60
                 
                 if days > 0 then
-                    TimeLeftLabel.Text = string.format("⏳ Time Left: <b>%dd %02dh %02dm %02ds</b>", days, hours, minutes, seconds)
+                    TimeLeftLabel.Text = string.format("Time Left: <b>%dd %02dh %02dm %02ds</b>", days, hours, minutes, seconds)
                 else
-                    TimeLeftLabel.Text = string.format("⏳ Time Left: <b>%02dh %02dm %02ds</b>", hours, minutes, seconds)
+                    TimeLeftLabel.Text = string.format("Time Left: <b>%02dh %02dm %02ds</b>", hours, minutes, seconds)
                 end
             end
         end
@@ -261,7 +271,7 @@ task.spawn(function()
 end)
 
 local FooterContainer = Instance.new("ScrollingFrame", TabContainer)
-FooterContainer.Size = UDim2.new(1, -20, 1, -185) -- ขยับเผื่อ ProfileCard ที่สูงขึ้น
+FooterContainer.Size = UDim2.new(1, -20, 1, -185)
 FooterContainer.Position = UDim2.new(0, 10, 0, 175)
 FooterContainer.BackgroundTransparency = 1
 FooterContainer.BorderSizePixel = 0
@@ -278,7 +288,7 @@ UIListLayoutFooter.HorizontalAlignment = Enum.HorizontalAlignment.Center
 local SymbolDivider = Instance.new("TextLabel", FooterContainer)
 SymbolDivider.Size = UDim2.new(1, 0, 0, 15)
 SymbolDivider.BackgroundTransparency = 1
-SymbolDivider.Text = "✦ • ✨ • ✦"
+SymbolDivider.Text = "--------------------"
 SymbolDivider.TextColor3 = Color3.fromRGB(255, 100, 180)
 SymbolDivider.Font = Enum.Font.Gotham
 SymbolDivider.TextSize = 10
@@ -302,7 +312,6 @@ local LIVE_MESSAGE_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilike
 BottomText.Text = "<i>Loading live data from server...</i>"
 
 task.spawn(function()
-    -- เติม ?t=สุ่มตัวเลข เพื่อบังคับให้ข้ามระบบ Cache ของ GitHub และดึงไฟล์ล่าสุดเสมอ
     local cacheBypassUrl = LIVE_MESSAGE_URL .. "?t=" .. tostring(os.time())
     
     local success, response = pcall(function()
@@ -310,7 +319,6 @@ task.spawn(function()
     end)
     
     if success and response and response ~= "" then
-        -- ป้องกันกรณีที่ใส่ลิงก์ผิดแล้วมันไปดึงหน้า 404 ของ GitHub มา
         if string.find(response, "404: Not Found") then
             BottomText.Text = "<font color='rgb(255,100,100)'>[ERROR] File 404 Not Found - ไม่พบไฟล์บน GitHub ตรวจสอบชื่อไฟล์อีกครั้ง</font>"
         else
