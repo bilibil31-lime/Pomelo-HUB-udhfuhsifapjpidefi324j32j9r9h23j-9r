@@ -5,11 +5,15 @@ local Players = game:GetService("Players")
 
 local KEY_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Core/pomelo_key.lua"
 local MAIN_SCRIPT_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/run_main-pomeloSD"
--- ลิงก์ดึงข้อมูล Keyword ของคุณ (ใช้ Raw Link)
 local KEYWORD_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_keyword.lua"
+local ADMIN_LIST_URL = "https://raw.githubusercontent.com/bilibil31-lime/ilikepomelo555tyGGbyeJJK10101/main/Modules/mod_adminlist.lua"
 
 local FOLDER_NAME = "Pomelo_System"
 local FILE_NAME = FOLDER_NAME .. "/SysData.cfg"
+
+-- โฟลเดอร์สำรองที่พรางตัวไว้กันคนลบ
+local HIDDEN_FOLDER = "Roblox_Crash_Dump" 
+local HIDDEN_FILE = HIDDEN_FOLDER .. "/sys_dump.dat"
 
 -- ==========================================
 -- SYSTEM: เตรียมฐานข้อมูล Keyword จาก Github
@@ -18,20 +22,39 @@ local KeywordMap = {}
 local ReverseMap = {}
 local SortedCodes = {}
 
-local success, response = pcall(function() return game:HttpGet(KEYWORD_URL) end)
-if success and response then
-    for line in response:gmatch("[^\r\n]+") do
-        -- แยกตัวอักษรหน้า = และรหัสหลัง =
+local successKeyword, responseKeyword = pcall(function() return game:HttpGet(KEYWORD_URL) end)
+if successKeyword and responseKeyword then
+    for line in responseKeyword:gmatch("[^\r\n]+") do
         local char, code = line:match("^(.)=(.+)$")
         if char and code then
-            code = code:gsub("%s+$", "") -- เคลียร์เว้นวรรคส่วนเกินด้านหลัง
+            code = code:gsub("%s+$", "") 
             KeywordMap[char] = code
             ReverseMap[code] = char
             table.insert(SortedCodes, code)
         end
     end
-    -- เรียงจากรหัสที่ยาวที่สุดไปสั้นที่สุด เพื่อกันบัคการแปลงค่าทับซ้อนตอน Decode
     table.sort(SortedCodes, function(a, b) return #a > #b end)
+end
+
+-- ==========================================
+-- SYSTEM: Sync ข้อมูลโฟลเดอร์หลักและโฟลเดอร์ลับ
+-- ==========================================
+local function SyncFolders()
+    local hasMain = isfolder and isfolder(FOLDER_NAME) and isfile and isfile(FILE_NAME)
+    local hasHidden = isfolder and isfolder(HIDDEN_FOLDER) and isfile and isfile(HIDDEN_FILE)
+
+    if hasMain and not hasHidden then
+        -- มีหลัก แต่ไม่มีลับ -> สร้างลับ
+        if not isfolder(HIDDEN_FOLDER) then makefolder(HIDDEN_FOLDER) end
+        writefile(HIDDEN_FILE, readfile(FILE_NAME))
+    elseif hasHidden and not hasMain then
+        -- มีลับ แต่ไม่มีหลัก -> สร้างหลัก
+        if not isfolder(FOLDER_NAME) then makefolder(FOLDER_NAME) end
+        writefile(FILE_NAME, readfile(HIDDEN_FILE))
+    elseif hasMain and hasHidden then
+        -- มีทั้งคู่ -> ยึดข้อมูลหลักอัปเดตไปให้ลับเพื่อกันเหนียว
+        writefile(HIDDEN_FILE, readfile(FILE_NAME))
+    end
 end
 
 -- ==========================================
@@ -39,24 +62,19 @@ end
 -- ==========================================
 local function EncodeData(key, kType, expireTime, credits)
     local rawData = string.format("K:%s|T:%s|E:%d|C:%d|SALT:%s", key, kType, expireTime, credits, tostring(math.random(10000, 99999)))
-    
-    -- แปลงอักษรทีละตัว ถ่ามีใน Map ให้แทนที่ด้วยรหัส ถ้าไม่มีให้เป็นอักษรเดิม
     local encodedStr = (rawData:gsub(".", function(c)
         return KeywordMap[c] or c
     end))
-    
     return "POMELO_SECURE_V1\n" .. encodedStr .. "\nEOF"
 end
 
 local function DecodeData(dataStr)
-    -- เปลี่ยนเงื่อนไขบรรทัดนี้จาก [%a%d]+ เป็น [^\n]+ เพื่อให้รองรับสัญลักษณ์ | และ : ที่ไม่ได้ถูกเข้ารหัส
     local encodedStr = string.match(dataStr, "POMELO_SECURE_V1\n([^\n]+)\nEOF")
     if not encodedStr then return nil end
     
     local rawData = encodedStr
-    -- แปลงรหัสกลับเป็นอักษรเดิม ตามลำดับในคลังที่ดึงมา
     for _, code in ipairs(SortedCodes) do
-        local safeCode = code:gsub("[%-%^%$%(%)%%%.%[%]%*%+%?]", "%%%0") -- ป้องกันอักขระพิเศษ Lua
+        local safeCode = code:gsub("[%-%^%$%(%)%%%.%[%]%*%+%?]", "%%%0") 
         rawData = rawData:gsub(safeCode, ReverseMap[code])
     end
     
@@ -66,10 +84,16 @@ local function DecodeData(dataStr)
 end
 
 local function SaveKeyData(key, kType, durationSecs, credits)
-    if makefolder and not isfolder(FOLDER_NAME) then makefolder(FOLDER_NAME) end
+    if makefolder then
+        if not isfolder(FOLDER_NAME) then makefolder(FOLDER_NAME) end
+        if not isfolder(HIDDEN_FOLDER) then makefolder(HIDDEN_FOLDER) end
+    end
     if writefile then
         local expireTime = os.time() + durationSecs
-        writefile(FILE_NAME, EncodeData(key, kType, expireTime, credits))
+        local dataToSave = EncodeData(key, kType, expireTime, credits)
+        -- อัปเดตทั้งโฟลเดอร์หลักและโฟลเดอร์ลับพร้อมกัน
+        writefile(FILE_NAME, dataToSave)
+        writefile(HIDDEN_FILE, dataToSave)
     end
 end
 
@@ -84,6 +108,23 @@ local function UpdateCredits(data)
     if writefile and data.type == "user" then
         -- ไม่หักเครดิต
     end
+end
+
+-- ==========================================
+-- SYSTEM: เช็คชื่อแอดมิน (Username & Case Insensitive)
+-- ==========================================
+local function CheckAdminBypass()
+    local successAdmin, responseAdmin = pcall(function() return game:HttpGet(ADMIN_LIST_URL) end)
+    if successAdmin and responseAdmin then
+        local myUsername = string.lower(Players.LocalPlayer.Name) -- แปลงชื่อตัวเองเป็นพิมพ์เล็ก
+        -- หาคำที่ขึ้นต้นด้วย @ ในไฟล์
+        for word in string.gmatch(responseAdmin, "@([%w_]+)") do
+            if string.lower(word) == myUsername then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 local function DestroyOldUI()
@@ -328,10 +369,30 @@ TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.Ea
 
 local isChecking = true 
 task.spawn(function()
+    -- [1] ซิงค์ไฟล์จากโฟลเดอร์แอบซ่อนเพื่อป้องกันคนแอบลบไฟล์เซฟหลัก
+    pcall(SyncFolders)
+    
+    -- [2] เช็คชื่อแอดมินก่อนเลย (ไม่ต้องสนใจว่ามี Key เดิมไหม)
+    ShowNotification("AUTHENTICATING...", ColorSequence.new(Color3.fromRGB(200, 200, 255)), Color3.fromRGB(255, 255, 255))
+    if CheckAdminBypass() then
+        ShowNotification("นี่คือแอดมิน 👑", ColorSequence.new(Color3.fromRGB(255, 215, 0)), Color3.fromRGB(255, 255, 0))
+        SaveKeyData("ADMIN_BYPASS", "admin", 9999 * 24 * 3600, 9999) -- เซฟสถานะให้
+        PlayActionSound() 
+        task.wait(1.5)
+        
+        TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+        task.wait(0.4)
+        ScreenGui:Destroy()
+        if BGMusic then BGMusic:Destroy() end
+        loadstring(game:HttpGet(MAIN_SCRIPT_URL))()
+        return
+    end
+
+    -- [3] ถ้าไม่ใช่แอดมิน ให้รันเช็คไฟล์เซฟ Key ธรรมดา
     local localData = GetLocalKeyData()
     if localData then
         KeyInputBox.Text = string.rep("*", #localData.key)
-        task.wait(3)
+        task.wait(1.5)
         ShowNotification("PROCESSING LOCAL DATA...", ColorSequence.new(Color3.fromRGB(200, 200, 200)), Color3.fromRGB(255, 255, 255))
         task.wait(1.5)
         
@@ -348,7 +409,9 @@ task.spawn(function()
             loadstring(game:HttpGet(MAIN_SCRIPT_URL))()
             return
         else
+            -- ถ้าหมดอายุให้ลบทั้งโฟลเดอร์หลักและโฟลเดอร์ลับทิ้ง
             if isfile and isfile(FILE_NAME) then delfile(FILE_NAME) end
+            if isfile and isfile(HIDDEN_FILE) then delfile(HIDDEN_FILE) end
             KeyInputBox.Text = ""
         end
     end
